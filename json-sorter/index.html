@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON Sorter</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3250;
+    --accent: #6c63ff;
+    --accent2: #a78bfa;
+    --green: #34d399;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --radius: 12px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px 16px;
+  }
+
+  .app {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+
+  header p { color: var(--text2); font-size: 0.95rem; }
+
+  /* Steps */
+  .steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 40px;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text2);
+    transition: color 0.3s;
+  }
+
+  .step.active { color: var(--accent2); }
+  .step.done { color: var(--green); }
+
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700;
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  .step.active .step-num { background: var(--accent); border-color: var(--accent); color: white; }
+  .step.done .step-num { background: var(--green); border-color: var(--green); color: white; }
+
+  .step-divider { flex: 1; max-width: 60px; height: 2px; background: var(--border); border-radius: 2px; }
+
+  /* Upload area */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 56px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface);
+    position: relative;
+    margin-bottom: 24px;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(108,99,255,0.08);
+  }
+
+  .drop-zone.loaded {
+    border-color: var(--green);
+    border-style: solid;
+    background: rgba(52,211,153,0.06);
+  }
+
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .drop-icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .drop-label { font-size: 0.9rem; color: var(--text2); margin-bottom: 4px; }
+  .drop-tag { font-size: 0.75rem; color: var(--text2); }
+
+  .file-info {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .drop-zone.loaded .file-info { display: flex; }
+  .drop-zone.loaded .drop-placeholder { display: none; }
+
+  .file-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--green);
+    word-break: break-all;
+    max-width: 400px;
+  }
+
+  .file-count {
+    font-size: 0.8rem;
+    color: var(--text2);
+  }
+
+  /* Sort options panel */
+  .sort-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 24px;
+    display: none;
+  }
+
+  .sort-panel.visible { display: block; }
+
+  .sort-panel-title {
+    font-size: 0.85rem;
+    color: var(--text2);
+    margin-bottom: 16px;
+  }
+
+  .sort-panel-title strong { color: var(--text); }
+
+  .sort-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .sort-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .sort-group-label {
+    font-size: 0.8rem;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+
+  .key-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .key-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 0.82rem;
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .key-chip:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .key-chip.selected {
+    border-color: var(--accent);
+    background: rgba(108,99,255,0.15);
+    color: var(--accent2);
+    font-weight: 600;
+  }
+
+  .key-custom-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .key-custom-input {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    color: var(--text);
+    font-size: 0.82rem;
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+    width: 160px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .key-custom-input:focus { border-color: var(--accent); }
+  .key-custom-input::placeholder { color: var(--text2); }
+
+  /* Direction toggle */
+  .dir-chips {
+    display: flex;
+    gap: 8px;
+  }
+
+  .dir-chip {
+    padding: 6px 18px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dir-chip:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .dir-chip.selected {
+    border-color: var(--accent);
+    background: rgba(108,99,255,0.15);
+    color: var(--accent2);
+    font-weight: 600;
+  }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+
+  .btn-primary:hover:not(:disabled) { background: #5a52e0; transform: translateY(-1px); }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--text);
+    border: 2px solid var(--border);
+  }
+
+  .btn-outline:hover:not(:disabled) { border-color: var(--accent); color: var(--accent2); }
+
+  .btn-green {
+    background: var(--green);
+    color: #0f1117;
+  }
+
+  .btn-green:hover { background: #2ab882; }
+
+  .btn-sm { padding: 8px 16px; font-size: 0.85rem; }
+
+  .actions-row {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  /* Step 2: sorting animation */
+  #sort-section { display: none; }
+
+  .sort-progress-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px 24px;
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .sort-spinner {
+    font-size: 2.5rem;
+    display: inline-block;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .sort-progress-text {
+    font-size: 1rem;
+    color: var(--text2);
+  }
+
+  /* Results */
+  #result-section { display: none; }
+
+  .report-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  @media (max-width: 600px) { .report-grid { grid-template-columns: 1fr; } }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-label { font-size: 0.8rem; color: var(--text2); }
+
+  .stat-card.green .stat-value { color: var(--green); }
+  .stat-card.accent .stat-value { color: var(--accent2); }
+  .stat-card.yellow .stat-value { color: var(--yellow); }
+
+  .result-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 28px;
+  }
+
+  .preview-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .preview-box-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .preview-content {
+    padding: 16px 20px;
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+    font-size: 0.75rem;
+    color: var(--text2);
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.6;
+  }
+
+  /* Sort summary badge */
+  .sort-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(108,99,255,0.15);
+    border: 1px solid var(--accent);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.8rem;
+    color: var(--accent2);
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  }
+
+  /* Misc */
+  .hidden { display: none !important; }
+
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 0.875rem;
+    color: var(--text);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    transform: translateY(20px);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 1000;
+    max-width: 320px;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>JSON Sorter</h1>
+    <p>Сортировка JSON-массива по любому полю — по возрастанию или убыванию</p>
+  </header>
+
+  <div class="steps">
+    <div class="step active" id="step-1">
+      <div class="step-num">1</div>
+      <span>Загрузка файла</span>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step" id="step-2">
+      <div class="step-num">2</div>
+      <span>Настройка</span>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step" id="step-3">
+      <div class="step-num">3</div>
+      <span>Результат</span>
+    </div>
+  </div>
+
+  <!-- STEP 1: Upload -->
+  <div id="upload-section">
+    <div class="drop-zone" id="dz1"
+         ondragover="handleDragOver(event,this)"
+         ondragleave="handleDragLeave(this)"
+         ondrop="handleDrop(event)">
+      <input type="file" accept=".json" onchange="loadFile(event)">
+      <div class="drop-placeholder">
+        <div class="drop-icon">📄</div>
+        <div class="drop-label"><strong>JSON файл</strong></div>
+        <div class="drop-tag">Перетащи сюда или кликни для выбора</div>
+      </div>
+      <div class="file-info">
+        <div style="font-size:2rem">✅</div>
+        <div class="file-name" id="fname"></div>
+        <div class="file-count" id="fcount"></div>
+      </div>
+    </div>
+
+    <!-- Sort options (shown after file loaded) -->
+    <div class="sort-panel" id="sort-panel">
+      <div class="sort-panel-title"><strong>Настройки сортировки</strong></div>
+      <div class="sort-row">
+        <div class="sort-group">
+          <div class="sort-group-label">Поле для сортировки</div>
+          <div class="key-chips" id="key-chips"></div>
+          <div class="key-custom-wrap">
+            <input class="key-custom-input" id="key-custom" placeholder="другое поле…" oninput="onCustomKey(this.value)">
+          </div>
+        </div>
+        <div class="sort-group" style="flex:0;min-width:auto">
+          <div class="sort-group-label">Направление</div>
+          <div class="dir-chips">
+            <button class="dir-chip selected" id="dir-asc" onclick="selectDir('asc')">↑ По возрастанию</button>
+            <button class="dir-chip" id="dir-desc" onclick="selectDir('desc')">↓ По убыванию</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn btn-primary" id="sort-btn" disabled onclick="startSort()">
+        ↕ Сортировать
+      </button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Sorting -->
+  <div id="sort-section">
+    <div class="sort-progress-card">
+      <div class="sort-spinner">⚙️</div>
+      <div class="sort-progress-text">Сортировка…</div>
+    </div>
+  </div>
+
+  <!-- STEP 3: Result -->
+  <div id="result-section">
+    <div class="report-grid">
+      <div class="stat-card green">
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-label">Записей всего</div>
+      </div>
+      <div class="stat-card accent">
+        <div class="stat-value" id="stat-field">—</div>
+        <div class="stat-label">Поле сортировки</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-value" id="stat-dir">—</div>
+        <div class="stat-label">Направление</div>
+      </div>
+    </div>
+
+    <div class="result-actions">
+      <button class="btn btn-green" onclick="downloadResult()">⬇️ Скачать JSON</button>
+      <button class="btn btn-outline" onclick="reset()">🔄 Начать заново</button>
+    </div>
+
+    <div class="preview-box">
+      <div class="preview-box-header">
+        <span>Предпросмотр (первые 3 записи)</span>
+        <span id="preview-sort-badge"></span>
+      </div>
+      <div class="preview-content" id="preview-content"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const state = {
+  file: null,
+  data: null,
+  keyField: null,
+  direction: 'asc',
+  result: null,
+};
+
+// --- Drag & Drop ---
+function handleDragOver(e, el) {
+  e.preventDefault();
+  el.classList.add('dragover');
+}
+
+function handleDragLeave(el) {
+  el.classList.remove('dragover');
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const el = document.getElementById('dz1');
+  el.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+
+function loadFile(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  if (!file.name.endsWith('.json')) {
+    showToast('❌ Нужен файл формата .json');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) {
+        showToast('❌ JSON должен быть массивом объектов ([ {...}, ... ])');
+        return;
+      }
+      if (data.length === 0) {
+        showToast('⚠️ Файл содержит пустой массив');
+        return;
+      }
+
+      state.data = data;
+      state.file = file;
+
+      const dz = document.getElementById('dz1');
+      dz.classList.add('loaded');
+      document.getElementById('fname').textContent = file.name;
+      document.getElementById('fcount').textContent = `${data.length.toLocaleString()} записей`;
+
+      buildKeyPicker();
+      document.getElementById('sort-btn').disabled = false;
+      setStep(2);
+    } catch {
+      showToast('❌ Не удалось разобрать JSON — проверь файл');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// --- Key field picker ---
+function buildKeyPicker() {
+  const data = state.data;
+
+  // Collect all keys, count how often each appears
+  const keyCounts = new Map();
+  data.forEach(r => {
+    if (r && typeof r === 'object') {
+      Object.keys(r).forEach(k => keyCounts.set(k, (keyCounts.get(k) || 0) + 1));
+    }
+  });
+
+  // Sort: prefer keys present in most records, then id-like keys first
+  const keys = [...keyCounts.entries()]
+    .sort((a, b) => {
+      const scoreA = keyScore(a[0], a[1], data.length);
+      const scoreB = keyScore(b[0], b[1], data.length);
+      return scoreA - scoreB;
+    })
+    .map(([k]) => k);
+
+  // Auto-select: prefer 'id', otherwise first key
+  const preferred = keys.find(k => k === 'id') || keys[0];
+  state.keyField = preferred;
+
+  const chips = document.getElementById('key-chips');
+  chips.innerHTML = keys.slice(0, 10).map(k => `
+    <button class="key-chip ${k === preferred ? 'selected' : ''}"
+            onclick="selectKey('${escHtml(k)}')"
+            id="chip-${escAttr(k)}">${escHtml(k)}</button>
+  `).join('');
+
+  document.getElementById('sort-panel').classList.add('visible');
+}
+
+function keyScore(key, count, total) {
+  const coverage = count / total;
+  const isId = key === 'id' ? 0 : key.toLowerCase().includes('id') ? 1 : 2;
+  // Prefer high-coverage keys, then id-like keys
+  return (1 - coverage) * 10 + isId;
+}
+
+function selectKey(key) {
+  state.keyField = key;
+  document.querySelectorAll('.key-chip').forEach(c => c.classList.remove('selected'));
+  const chip = document.getElementById('chip-' + key);
+  if (chip) chip.classList.add('selected');
+  document.getElementById('key-custom').value = '';
+}
+
+function onCustomKey(val) {
+  const key = val.trim();
+  if (key) {
+    state.keyField = key;
+    document.querySelectorAll('.key-chip').forEach(c => c.classList.remove('selected'));
+  } else {
+    // Revert to last chip selection
+    const firstChip = document.querySelector('.key-chip');
+    if (firstChip) firstChip.click();
+  }
+}
+
+function selectDir(dir) {
+  state.direction = dir;
+  document.getElementById('dir-asc').classList.toggle('selected', dir === 'asc');
+  document.getElementById('dir-desc').classList.toggle('selected', dir === 'desc');
+}
+
+// --- Sort logic ---
+function startSort() {
+  const key = state.keyField;
+  if (!key) { showToast('❌ Выбери поле для сортировки'); return; }
+
+  document.getElementById('upload-section').style.display = 'none';
+  document.getElementById('sort-section').style.display = 'block';
+
+  // Small delay so the spinner renders before sync sort
+  setTimeout(() => {
+    const data = state.data;
+    const dir = state.direction;
+
+    const sorted = [...data].sort((a, b) => {
+      const av = a[key];
+      const bv = b[key];
+
+      // nulls/undefined go last regardless of direction
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+
+      let cmp;
+      if (typeof av === 'number' && typeof bv === 'number') {
+        cmp = av - bv;
+      } else {
+        cmp = String(av).localeCompare(String(bv), undefined, { numeric: true, sensitivity: 'base' });
+      }
+      return dir === 'asc' ? cmp : -cmp;
+    });
+
+    state.result = sorted;
+    showResult();
+  }, 50);
+}
+
+function showResult() {
+  const { result, keyField, direction } = state;
+
+  document.getElementById('sort-section').style.display = 'none';
+  document.getElementById('result-section').style.display = 'block';
+  setStep(3);
+
+  document.getElementById('stat-total').textContent = result.length.toLocaleString();
+  document.getElementById('stat-field').textContent = keyField;
+  document.getElementById('stat-dir').textContent = direction === 'asc' ? '↑ Возр.' : '↓ Убыв.';
+
+  const preview = result.slice(0, 3);
+  document.getElementById('preview-content').textContent = JSON.stringify(preview, null, 2);
+
+  const dirLabel = direction === 'asc' ? '↑ по возрастанию' : '↓ по убыванию';
+  document.getElementById('preview-sort-badge').innerHTML =
+    `<span class="sort-badge">sorted by <strong>${escHtml(keyField)}</strong> ${dirLabel}</span>`;
+}
+
+function downloadResult() {
+  const json = JSON.stringify(state.result, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+
+  const base = (state.file.name || 'data').replace(/\.json$/i, '');
+  const dirSuffix = state.direction === 'asc' ? 'asc' : 'desc';
+  a.download = `${base}_sorted_${state.keyField}_${dirSuffix}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ Файл скачан!');
+}
+
+function reset() {
+  location.reload();
+}
+
+function setStep(n) {
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById('step-' + i);
+    el.classList.remove('active', 'done');
+    if (i < n) el.classList.add('done');
+    else if (i === n) el.classList.add('active');
+  }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escAttr(s) {
+  return String(s).replace(/[^\w-]/g, '_');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
