@@ -421,10 +421,25 @@
   }
 
   .toast.show { transform: translateY(0); opacity: 1; }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text2);
+    font-size: 0.85rem;
+    text-decoration: none;
+    margin-bottom: 32px;
+    transition: color 0.15s;
+  }
+
+  .back-link:hover { color: var(--accent2); }
 </style>
 </head>
 <body>
 <div class="app">
+
+  <a class="back-link" href="../index.html">← Все инструменты</a>
 
   <header>
     <h1>JSON Key Renamer</h1>
