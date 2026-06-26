@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Instagram Comments</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3250;
+    --accent: #6c63ff;
+    --accent2: #a78bfa;
+    --green: #34d399;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --radius: 12px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px 16px;
+  }
+
+  .app { max-width: 960px; margin: 0 auto; }
+
+  .back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text2);
+    font-size: 0.85rem;
+    text-decoration: none;
+    margin-bottom: 32px;
+    transition: color 0.15s;
+  }
+  .back-link:hover { color: var(--accent2); }
+
+  header { text-align: center; margin-bottom: 40px; }
+  header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+  header p { color: var(--text2); font-size: 0.95rem; }
+
+  /* Steps */
+  .steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 40px;
+    flex-wrap: wrap;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--text2);
+    transition: color 0.3s;
+  }
+  .step.active { color: var(--accent2); }
+  .step.done { color: var(--green); }
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700;
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .step.active .step-num { background: var(--accent); border-color: var(--accent); color: white; }
+  .step.done .step-num { background: var(--green); border-color: var(--green); color: white; }
+  .step-divider { flex: 1; max-width: 48px; height: 2px; background: var(--border); border-radius: 2px; }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 16px;
+  }
+
+  /* Form */
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 0.85rem; color: var(--text2); margin-bottom: 6px; display: block; }
+  .form-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text2); }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 24px;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover:not(:disabled) { background: #5a52e0; transform: translateY(-1px); }
+  .btn-outline { background: transparent; color: var(--text); border: 2px solid var(--border); }
+  .btn-outline:hover:not(:disabled) { border-color: var(--accent); color: var(--accent2); }
+  .btn-green { background: var(--green); color: #0f1117; }
+  .btn-green:hover:not(:disabled) { background: #2ab882; }
+  .btn-sm { padding: 7px 14px; font-size: 0.82rem; }
+
+  .actions-row { display: flex; justify-content: center; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+
+  /* Account cards */
+  .account-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  .account-card {
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .account-card:hover { border-color: var(--accent); background: rgba(108,99,255,0.08); }
+  .account-card.selected { border-color: var(--accent); background: rgba(108,99,255,0.12); }
+  .account-avatar {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--border);
+    margin: 0 auto 10px;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    color: var(--text2);
+  }
+  .account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .account-name { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+  .account-username { font-size: 0.78rem; color: var(--text2); }
+
+  /* Post grid */
+  .post-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+  }
+  .post-thumb {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    border: 3px solid transparent;
+    transition: border-color 0.2s;
+    background: var(--surface2);
+  }
+  .post-thumb:hover { border-color: var(--accent2); }
+  .post-thumb.selected { border-color: var(--accent); }
+  .post-thumb img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .post-thumb .post-no-image {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem;
+    background: var(--surface2);
+  }
+  .post-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 8px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .post-thumb:hover .post-overlay,
+  .post-thumb.selected .post-overlay { opacity: 1; }
+  .post-overlay-stats { font-size: 0.72rem; color: white; display: flex; gap: 8px; }
+  .post-check {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 22px; height: 22px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: none;
+    align-items: center; justify-content: center;
+    font-size: 0.7rem;
+    color: white;
+    font-weight: 700;
+  }
+  .post-thumb.selected .post-check { display: flex; }
+
+  .load-more-row { display: flex; justify-content: center; margin-top: 16px; }
+
+  /* Settings */
+  .settings-row { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+  .setting-item { display: flex; align-items: center; gap: 10px; }
+  .setting-label { font-size: 0.88rem; color: var(--text2); }
+  .toggle-wrap { position: relative; display: inline-block; width: 40px; height: 22px; }
+  .toggle-wrap input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .toggle-slider {
+    position: absolute; inset: 0;
+    background: var(--border);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    left: 3px; top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .toggle-wrap input:checked + .toggle-slider { background: var(--accent); }
+  .toggle-wrap input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+  .limit-input {
+    width: 90px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: var(--text);
+    font-size: 0.88rem;
+    outline: none;
+    text-align: center;
+  }
+  .limit-input:focus { border-color: var(--accent); }
+
+  /* Progress */
+  .progress-block { text-align: center; padding: 16px 0; }
+  .progress-label { font-size: 0.88rem; color: var(--text2); margin-bottom: 12px; }
+  .progress-bar { height: 6px; background: var(--border); border-radius: 4px; margin-bottom: 8px; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.4s; }
+  .progress-count { font-size: 1.6rem; font-weight: 700; color: var(--accent2); margin-bottom: 4px; }
+  .progress-sub { font-size: 0.8rem; color: var(--text2); }
+
+  /* Result stats */
+  .report-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 600px) { .report-grid { grid-template-columns: 1fr; } }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+  }
+  .stat-value { font-size: 2rem; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+  .stat-label { font-size: 0.8rem; color: var(--text2); }
+  .stat-card.green .stat-value { color: var(--green); }
+  .stat-card.accent .stat-value { color: var(--accent2); }
+  .stat-card.yellow .stat-value { color: var(--yellow); }
+
+  /* Preview */
+  .preview-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .preview-box-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .preview-content {
+    padding: 16px 20px;
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+    font-size: 0.75rem;
+    color: var(--text2);
+    max-height: 280px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.6;
+  }
+
+  /* Info note */
+  .info-note {
+    background: rgba(108,99,255,0.08);
+    border: 1px solid rgba(108,99,255,0.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.82rem;
+    color: var(--text2);
+    margin-top: 12px;
+    line-height: 1.5;
+  }
+  .info-note strong { color: var(--accent2); }
+
+  /* Supabase optional badge */
+  .optional-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: rgba(251,191,36,0.12);
+    border: 1px solid rgba(251,191,36,0.3);
+    border-radius: 20px;
+    font-size: 0.7rem;
+    color: var(--yellow);
+    font-weight: 600;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  /* Section helpers */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .section-header h2 { font-size: 1rem; font-weight: 600; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-size: 0.875rem;
+    color: var(--text);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    transform: translateY(20px);
+    opacity: 0;
+    transition: all 0.3s;
+    z-index: 1000;
+    max-width: 320px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  .hidden { display: none !important; }
+
+  /* Post caption preview in selection */
+  .selected-post-info {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.82rem;
+    color: var(--text2);
+    margin-top: 12px;
+    display: none;
+  }
+  .selected-post-info.visible { display: block; }
+  .selected-post-info strong { color: var(--text); }
+
+  /* Stop button area */
+  #stop-row { display: flex; justify-content: center; margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <a class="back-link" href="../index.html">← Все инструменты</a>
+
+  <header>
+    <h1>Instagram Comments</h1>
+    <p>Сбор комментариев из Instagram по выбранному посту — с экспортом в JSON</p>
+  </header>
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step active" id="step-1">
+      <div class="step-num">1</div>
+      <span>Токен</span>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step" id="step-2">
+      <div class="step-num">2</div>
+      <span>Аккаунт</span>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step" id="step-3">
+      <div class="step-num">3</div>
+      <span>Пост</span>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step" id="step-4">
+      <div class="step-num">4</div>
+      <span>Сбор</span>
+    </div>
+    <div class="step-divider"></div>
+    <div class="step" id="step-5">
+      <div class="step-num">5</div>
+      <span>Результат</span>
+    </div>
+  </div>
+
+  <!-- STEP 1: Credentials -->
+  <div id="setup-section">
+    <div class="card">
+      <div class="card-title">Instagram</div>
+      <div class="form-group">
+        <label class="form-label">User Access Token</label>
+        <input class="form-input" type="password" id="ig-token" placeholder="Вставь токен доступа Instagram…" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Supabase <span class="optional-badge">опционально</span></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Project URL</label>
+          <input class="form-input" type="text" id="sb-url" placeholder="https://xxxx.supabase.co" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Anon Key</label>
+          <input class="form-input" type="password" id="sb-key" placeholder="eyJ…" autocomplete="off">
+        </div>
+      </div>
+      <div class="info-note">
+        <strong>Для чего нужен Supabase:</strong> хранение аватарок авторов комментариев между сессиями.
+        Если не заполнить — инструмент работает без сохранения аватарок.
+      </div>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn btn-primary" onclick="onSetupNext()">Продолжить →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: Account -->
+  <div id="account-section" class="hidden">
+    <div class="card">
+      <div class="section-header">
+        <h2>Выбери Instagram-аккаунт</h2>
+        <button class="btn btn-outline btn-sm" onclick="goToSetup()">← Назад</button>
+      </div>
+      <div class="account-grid" id="account-grid">
+        <div style="color:var(--text2);font-size:0.88rem">Загрузка аккаунтов…</div>
+      </div>
+    </div>
+    <div class="actions-row">
+      <button class="btn btn-primary" id="account-next-btn" disabled onclick="onAccountNext()">Выбрать посты →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Post -->
+  <div id="post-section" class="hidden">
+    <div class="card">
+      <div class="section-header">
+        <h2 id="post-section-title">Выбери пост</h2>
+        <button class="btn btn-outline btn-sm" onclick="goToAccounts()">← Назад</button>
+      </div>
+      <div class="post-grid" id="post-grid">
+        <div style="color:var(--text2);font-size:0.88rem">Загрузка постов…</div>
+      </div>
+      <div class="load-more-row">
+        <button class="btn btn-outline btn-sm hidden" id="load-more-btn" onclick="loadMorePosts()">Загрузить ещё посты</button>
+      </div>
+      <div class="selected-post-info" id="selected-post-info"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Настройки сбора</div>
+      <div class="settings-row">
+        <div class="setting-item">
+          <label class="toggle-wrap">
+            <input type="checkbox" id="include-replies" checked>
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="setting-label">Включать вложенные ответы</span>
+        </div>
+        <div class="setting-item">
+          <span class="setting-label">Лимит комментариев:</span>
+          <input class="limit-input" type="number" id="limit-input" value="1000" min="1" max="50000">
+        </div>
+      </div>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn btn-primary" id="collect-btn" disabled onclick="startCollect()">⚡ Собрать комментарии</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: Collecting -->
+  <div id="collect-section" class="hidden">
+    <div class="card">
+      <div class="card-title">Идёт сбор комментариев…</div>
+      <div class="progress-block">
+        <div class="progress-count" id="collect-count">0</div>
+        <div class="progress-sub" id="collect-sub">комментариев собрано</div>
+        <div class="progress-bar" style="margin-top:20px">
+          <div class="progress-fill" id="collect-progress" style="width:0%"></div>
+        </div>
+        <div class="progress-label" id="collect-status" style="margin-top:8px">Подготовка…</div>
+      </div>
+      <div id="stop-row">
+        <button class="btn btn-outline btn-sm" onclick="stopCollect()">Остановить и скачать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 5: Result -->
+  <div id="result-section" class="hidden">
+    <div class="report-grid">
+      <div class="stat-card green">
+        <div class="stat-value" id="stat-comments">0</div>
+        <div class="stat-label">Комментариев</div>
+      </div>
+      <div class="stat-card accent">
+        <div class="stat-value" id="stat-replies">0</div>
+        <div class="stat-label">Ответов (replies)</div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-value" id="stat-authors">0</div>
+        <div class="stat-label">Уникальных авторов</div>
+      </div>
+    </div>
+
+    <div class="actions-row" style="margin-bottom:24px">
+      <button class="btn btn-green" onclick="downloadJSON()">⬇️ Скачать JSON</button>
+      <button class="btn btn-outline" onclick="goToPost()">← Другой пост</button>
+      <button class="btn btn-outline" onclick="reset()">🔄 Начать заново</button>
+    </div>
+
+    <div class="preview-box">
+      <div class="preview-box-header">
+        <span>Предпросмотр (первые 3 комментария)</span>
+        <span id="preview-total-label" style="color:var(--accent2)"></span>
+      </div>
+      <div class="preview-content" id="preview-content"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+const S = {
+  token: null,
+  sbUrl: null,
+  sbKey: null,
+  accounts: [],
+  selectedAccount: null,
+  posts: [],
+  postsNextCursor: null,
+  selectedPost: null,
+  includeReplies: true,
+  limit: 1000,
+  comments: [],
+  _stopFlag: false,
+  _result: null,
+};
+
+const API = 'https://graph.facebook.com/v21.0';
+
+// ─── Session storage ──────────────────────────────────────────────────────────
+function saveSession() {
+  sessionStorage.setItem('ig_token', S.token || '');
+  sessionStorage.setItem('sb_url', S.sbUrl || '');
+  sessionStorage.setItem('sb_key', S.sbKey || '');
+}
+
+function loadSession() {
+  document.getElementById('ig-token').value = sessionStorage.getItem('ig_token') || '';
+  document.getElementById('sb-url').value = sessionStorage.getItem('sb_url') || '';
+  document.getElementById('sb-key').value = sessionStorage.getItem('sb_key') || '';
+}
+
+// ─── Steps ────────────────────────────────────────────────────────────────────
+function setStep(n) {
+  for (let i = 1; i <= 5; i++) {
+    const el = document.getElementById('step-' + i);
+    el.classList.remove('active', 'done');
+    if (i < n) el.classList.add('done');
+    else if (i === n) el.classList.add('active');
+  }
+}
+
+function showOnly(id) {
+  ['setup-section','account-section','post-section','collect-section','result-section']
+    .forEach(s => document.getElementById(s).classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+// ─── Step 1: Setup ───────────────────────────────────────────────────────────
+function onSetupNext() {
+  const token = document.getElementById('ig-token').value.trim();
+  if (!token) { showToast('❌ Вставь Instagram User Access Token'); return; }
+  S.token = token;
+  S.sbUrl = document.getElementById('sb-url').value.trim();
+  S.sbKey = document.getElementById('sb-key').value.trim();
+  saveSession();
+  setStep(2);
+  showOnly('account-section');
+  loadAccounts();
+}
+
+function goToSetup() {
+  setStep(1);
+  showOnly('setup-section');
+}
+
+// ─── Step 2: Accounts ─────────────────────────────────────────────────────────
+async function loadAccounts() {
+  const grid = document.getElementById('account-grid');
+  grid.innerHTML = '<div style="color:var(--text2);font-size:0.88rem">Загрузка аккаунтов…</div>';
+  try {
+    const url = `${API}/me/accounts?fields=instagram_business_account{id,name,username,profile_picture_url}&access_token=${S.token}`;
+    const data = await apiFetch(url);
+    const accounts = (data.data || [])
+      .filter(p => p.instagram_business_account)
+      .map(p => p.instagram_business_account);
+
+    if (accounts.length === 0) {
+      grid.innerHTML = '<div style="color:var(--red);font-size:0.88rem">Не найдено Instagram Business/Creator аккаунтов, привязанных к этому токену.</div>';
+      return;
+    }
+
+    S.accounts = accounts;
+    grid.innerHTML = accounts.map((a, i) => `
+      <div class="account-card" id="acct-${i}" onclick="selectAccount(${i})">
+        <div class="account-avatar">
+          ${a.profile_picture_url
+            ? `<img src="${escHtml(a.profile_picture_url)}" onerror="this.style.display='none'">`
+            : '👤'}
+        </div>
+        <div class="account-name">${escHtml(a.name || a.username)}</div>
+        <div class="account-username">@${escHtml(a.username)}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    grid.innerHTML = `<div style="color:var(--red);font-size:0.88rem">Ошибка: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function selectAccount(i) {
+  document.querySelectorAll('.account-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('acct-' + i).classList.add('selected');
+  S.selectedAccount = S.accounts[i];
+  document.getElementById('account-next-btn').disabled = false;
+}
+
+function onAccountNext() {
+  if (!S.selectedAccount) return;
+  setStep(3);
+  showOnly('post-section');
+  document.getElementById('post-section-title').textContent =
+    `Посты @${S.selectedAccount.username}`;
+  S.posts = [];
+  S.postsNextCursor = null;
+  S.selectedPost = null;
+  document.getElementById('collect-btn').disabled = true;
+  document.getElementById('selected-post-info').classList.remove('visible');
+  loadPosts();
+}
+
+function goToAccounts() {
+  setStep(2);
+  showOnly('account-section');
+}
+
+// ─── Step 3: Posts ────────────────────────────────────────────────────────────
+async function loadPosts() {
+  const grid = document.getElementById('post-grid');
+  if (S.posts.length === 0) {
+    grid.innerHTML = '<div style="color:var(--text2);font-size:0.88rem">Загрузка постов…</div>';
+  }
+
+  try {
+    let url = `${API}/${S.selectedAccount.id}/media?fields=id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count&limit=12&access_token=${S.token}`;
+    if (S.postsNextCursor) url += `&after=${S.postsNextCursor}`;
+
+    const data = await apiFetch(url);
+    const newPosts = data.data || [];
+    S.posts = [...S.posts, ...newPosts];
+    S.postsNextCursor = data.paging?.cursors?.after || null;
+
+    renderPosts();
+
+    const btn = document.getElementById('load-more-btn');
+    if (S.postsNextCursor && data.paging?.next) {
+      btn.classList.remove('hidden');
+    } else {
+      btn.classList.add('hidden');
+    }
+  } catch (e) {
+    grid.innerHTML = `<div style="color:var(--red);font-size:0.88rem">Ошибка: ${escHtml(e.message)}</div>`;
+  }
+}
+
+function renderPosts() {
+  const grid = document.getElementById('post-grid');
+  grid.innerHTML = S.posts.map((p, i) => {
+    const imgSrc = p.thumbnail_url || p.media_url || null;
+    const isVideo = p.media_type === 'VIDEO';
+    const date = new Date(p.timestamp).toLocaleDateString('ru-RU', { day:'numeric', month:'short' });
+    return `
+      <div class="post-thumb ${S.selectedPost?.id === p.id ? 'selected' : ''}" id="post-${i}" onclick="selectPost(${i})">
+        ${imgSrc
+          ? `<img src="${escHtml(imgSrc)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=post-no-image>${isVideo ? '🎬' : '🖼️'}</div>'">`
+          : `<div class="post-no-image">${isVideo ? '🎬' : '🖼️'}</div>`}
+        <div class="post-overlay">
+          <div class="post-overlay-stats">
+            <span>❤️ ${fmtNum(p.like_count)}</span>
+            <span>💬 ${fmtNum(p.comments_count)}</span>
+          </div>
+        </div>
+        <div class="post-check">✓</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectPost(i) {
+  S.selectedPost = S.posts[i];
+  renderPosts();
+  document.getElementById('collect-btn').disabled = false;
+
+  const info = document.getElementById('selected-post-info');
+  const cap = S.selectedPost.caption
+    ? S.selectedPost.caption.slice(0, 120) + (S.selectedPost.caption.length > 120 ? '…' : '')
+    : '(без подписи)';
+  const date = new Date(S.selectedPost.timestamp).toLocaleString('ru-RU');
+  info.innerHTML = `<strong>Выбранный пост:</strong> ${escHtml(cap)}<br>
+    <span style="margin-top:4px;display:block">📅 ${date} &nbsp;|&nbsp; 💬 ${fmtNum(S.selectedPost.comments_count)} комментариев</span>`;
+  info.classList.add('visible');
+}
+
+function loadMorePosts() {
+  loadPosts();
+}
+
+function goToPost() {
+  setStep(3);
+  showOnly('post-section');
+}
+
+// ─── Step 4: Collect ──────────────────────────────────────────────────────────
+async function startCollect() {
+  if (!S.selectedPost) return;
+  S.includeReplies = document.getElementById('include-replies').checked;
+  S.limit = parseInt(document.getElementById('limit-input').value) || 1000;
+  S.comments = [];
+  S._stopFlag = false;
+
+  setStep(4);
+  showOnly('collect-section');
+  document.getElementById('collect-count').textContent = '0';
+  document.getElementById('collect-status').textContent = 'Подготовка…';
+  document.getElementById('collect-progress').style.width = '0%';
+
+  await collectComments();
+}
+
+function stopCollect() {
+  S._stopFlag = true;
+}
+
+async function collectComments() {
+  const postId = S.selectedPost.id;
+  const totalEstimate = S.selectedPost.comments_count || 0;
+  const repliesFields = S.includeReplies
+    ? ',replies{id,text,username,timestamp,like_count}'
+    : '';
+
+  let url = `${API}/${postId}/comments?fields=id,text,username,timestamp,like_count${repliesFields}&limit=50&access_token=${S.token}`;
+  let page = 0;
+
+  while (url && S.comments.length < S.limit && !S._stopFlag) {
+    try {
+      setStatus(`Запрос страницы ${page + 1}…`);
+      const data = await apiFetch(url);
+      const items = data.data || [];
+
+      for (const comment of items) {
+        if (S.comments.length >= S.limit || S._stopFlag) break;
+        const replies = (comment.replies?.data || []).map(r => ({
+          id: r.id,
+          text: r.text,
+          username: r.username,
+          timestamp: r.timestamp,
+          like_count: r.like_count || 0,
+        }));
+        S.comments.push({
+          id: comment.id,
+          text: comment.text,
+          username: comment.username,
+          timestamp: comment.timestamp,
+          like_count: comment.like_count || 0,
+          replies_count: replies.length,
+          replies: S.includeReplies ? replies : undefined,
+        });
+      }
+
+      updateCollectUI(totalEstimate);
+      url = data.paging?.next || null;
+      page++;
+
+      // Rate limit guard: small delay between pages
+      if (url && !S._stopFlag) await sleep(300);
+    } catch (e) {
+      showToast('⚠️ Ошибка запроса: ' + e.message);
+      break;
+    }
+  }
+
+  finalize();
+}
+
+function setStatus(msg) {
+  document.getElementById('collect-status').textContent = msg;
+}
+
+function updateCollectUI(estimate) {
+  const count = S.comments.length;
+  document.getElementById('collect-count').textContent = fmtNum(count);
+  if (estimate > 0) {
+    const pct = Math.min(100, Math.round((count / Math.min(S.limit, estimate)) * 100));
+    document.getElementById('collect-progress').style.width = pct + '%';
+  }
+}
+
+// ─── Step 5: Result ───────────────────────────────────────────────────────────
+function finalize() {
+  S._result = S.comments;
+  const totalReplies = S.comments.reduce((s, c) => s + (c.replies?.length || 0), 0);
+  const authors = new Set(S.comments.map(c => c.username));
+
+  setStep(5);
+  showOnly('result-section');
+
+  document.getElementById('stat-comments').textContent = fmtNum(S.comments.length);
+  document.getElementById('stat-replies').textContent = fmtNum(totalReplies);
+  document.getElementById('stat-authors').textContent = fmtNum(authors.size);
+
+  const preview = S.comments.slice(0, 3);
+  document.getElementById('preview-content').textContent = JSON.stringify(preview, null, 2);
+  document.getElementById('preview-total-label').textContent =
+    `всего ${fmtNum(S.comments.length)} записей`;
+}
+
+function downloadJSON() {
+  const meta = {
+    _meta: {
+      exported_at: new Date().toISOString(),
+      account: S.selectedAccount?.username,
+      post_id: S.selectedPost?.id,
+      post_timestamp: S.selectedPost?.timestamp,
+      include_replies: S.includeReplies,
+      total_comments: S.comments.length,
+    }
+  };
+
+  const output = [meta, ...S._result];
+  const json = JSON.stringify(output, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const ts = new Date().toISOString().slice(0, 10);
+  const username = S.selectedAccount?.username || 'ig';
+  a.download = `comments_${username}_${ts}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ Файл скачан!');
+}
+
+function reset() {
+  S.comments = [];
+  S.selectedPost = null;
+  S.posts = [];
+  setStep(1);
+  showOnly('setup-section');
+  loadSession();
+}
+
+// ─── API helpers ──────────────────────────────────────────────────────────────
+async function apiFetch(url) {
+  const res = await fetch(url);
+  const json = await res.json();
+  if (json.error) {
+    throw new Error(`[${json.error.code}] ${json.error.message}`);
+  }
+  return json;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function fmtNum(n) {
+  if (n == null) return '0';
+  return Number(n).toLocaleString('ru-RU');
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadSession();
+</script>
+</body>
+</html>

@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON Analyzer — Team Tools</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #22263a;
+  --border: #2e3250;
+  --accent: #6c63ff;
+  --accent2: #a78bfa;
+  --green: #34d399;
+  --red: #f87171;
+  --yellow: #fbbf24;
+  --orange: #fb923c;
+  --blue: #60a5fa;
+  --text: #e2e8f0;
+  --text2: #94a3b8;
+  --radius: 12px;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+header {
+  flex-shrink: 0;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+}
+
+.back-link {
+  color: var(--text2);
+  text-decoration: none;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+.back-link:hover { color: var(--text); }
+
+header h1 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  white-space: nowrap;
+}
+
+header p {
+  color: var(--text2);
+  font-size: 0.8rem;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* ── Main layout ── */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 360px 5px 1fr;
+  overflow: hidden;
+}
+
+/* ── Splitter ── */
+.splitter {
+  background: var(--border);
+  cursor: col-resize;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 10;
+}
+.splitter:hover, .splitter.dragging { background: var(--accent); }
+
+/* ── Left panel ── */
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Drag-over state ── */
+.input-area.drag-over {
+  background: rgba(108,99,255,.07);
+  border-radius: 8px;
+}
+.input-area.drag-over textarea { border-color: var(--accent); }
+
+.input-area {
+  flex-shrink: 0;
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+  transition: padding 0.15s;
+}
+.input-area.ia-collapsed { padding-bottom: 10px; }
+
+.input-label-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 7px;
+}
+
+.input-label {
+  font-size: 0.72rem;
+  color: var(--text2);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  flex: 1;
+}
+
+.collapse-btn {
+  background: none;
+  border: none;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.15s;
+  line-height: 1;
+}
+.collapse-btn:hover { color: var(--text); background: var(--surface2); }
+
+.ia-body { display: flex; flex-direction: column; gap: 0; }
+.ia-collapsed .ia-body { display: none; }
+
+textarea {
+  width: 100%;
+  height: 130px;
+  min-height: 60px;
+  max-height: 320px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 0.76rem;
+  padding: 9px 10px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+  line-height: 1.5;
+}
+textarea:focus { border-color: var(--accent); }
+textarea.has-error { border-color: var(--red); }
+
+.error-msg {
+  color: var(--red);
+  font-size: 0.75rem;
+  margin-top: 5px;
+  line-height: 1.4;
+  display: none;
+}
+
+.input-actions {
+  display: flex;
+  gap: 7px;
+  margin-top: 8px;
+  align-items: center;
+}
+
+.btn {
+  padding: 7px 14px;
+  border-radius: 7px;
+  border: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: #fff; flex: 1; }
+.btn-primary:hover { background: #5b52e0; }
+.btn-ghost {
+  background: var(--surface2);
+  color: var(--text2);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { color: var(--text); border-color: #4a5280; }
+
+.shortcut-hint {
+  font-size: 0.7rem;
+  color: var(--text2);
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+/* ── Results area ── */
+.results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text2);
+  text-align: center;
+  gap: 10px;
+  padding-bottom: 40px;
+}
+.empty-state .ei { font-size: 2.5rem; opacity: 0.25; }
+.empty-state p { font-size: 0.85rem; line-height: 1.5; }
+
+/* ── Cards ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.card-header {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.card-header:hover { background: var(--surface2); }
+
+.card-icon { font-size: 0.95rem; flex-shrink: 0; }
+.card-title { font-size: 0.82rem; font-weight: 600; flex: 1; }
+
+.badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: var(--surface2);
+  color: var(--text2);
+  flex-shrink: 0;
+}
+.badge-warn { background: rgba(251,191,36,.12); color: var(--yellow); }
+.badge-err  { background: rgba(248,113,113,.12); color: var(--red); }
+.badge-ok   { background: rgba(52,211,153,.12);  color: var(--green); }
+
+.chevron { color: var(--text2); font-size: 0.65rem; transition: transform 0.2s; flex-shrink: 0; }
+.card.collapsed .chevron { transform: rotate(-90deg); }
+
+.card-body {
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--border);
+}
+.card.collapsed .card-body { display: none; }
+
+/* ── Stats grid ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 6px;
+  margin-top: 10px;
+}
+.stat-cell {
+  background: var(--surface2);
+  border-radius: 7px;
+  padding: 8px 10px;
+  min-width: 0;
+}
+.stat-lbl { font-size: 0.68rem; color: var(--text2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+.stat-val { font-size: 1.1rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Depth blocks ── */
+.depth-section { margin-top: 10px; }
+.depth-title {
+  font-size: 0.68rem;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+.depth-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+}
+.depth-row:last-child { border-bottom: none; }
+.depth-lvl { color: var(--text2); white-space: nowrap; font-size: 0.7rem; min-width: 60px; }
+.depth-info { color: var(--text); flex: 1; }
+
+.type-bars { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; }
+.type-row { display: flex; align-items: center; gap: 7px; font-size: 0.76rem; }
+.type-name { width: 55px; }
+.type-cnt  { width: 28px; text-align: right; color: var(--text); }
+.bar-track { flex: 1; height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+.bar-fill  { height: 100%; border-radius: 2px; }
+
+/* ── Finding groups (duplicates, nulls) ── */
+.finding-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 7px 9px;
+  background: var(--surface2);
+  border-radius: 7px;
+  font-size: 0.76rem;
+}
+.fnav-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-family: 'Menlo', 'Monaco', monospace;
+  font-size: 0.72rem;
+}
+.fnav-ctr { color: var(--text2); white-space: nowrap; font-size: 0.72rem; }
+
+.nav-btn {
+  width: 22px; height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text2);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.6rem;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.finding-list {
+  margin-top: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.fi {
+  padding: 5px 8px;
+  background: var(--surface2);
+  border-radius: 5px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  font-family: 'Menlo', 'Monaco', monospace;
+  color: var(--text2);
+  border: 1px solid transparent;
+  transition: all 0.12s;
+  word-break: break-all;
+  line-height: 1.4;
+}
+.fi:hover { border-color: var(--border); color: var(--text); }
+.fi.active { border-color: var(--accent); color: var(--text); background: rgba(108,99,255,.1); }
+
+/* ── Schema ── */
+.schema-view {
+  margin-top: 10px;
+  font-family: 'Menlo', 'Monaco', monospace;
+  font-size: 0.72rem;
+  background: var(--surface2);
+  border-radius: 7px;
+  padding: 9px 10px;
+  max-height: 220px;
+  overflow: auto;
+  line-height: 1.65;
+  white-space: pre;
+}
+.sk { color: var(--accent2); }
+.st { color: var(--green); }
+.sb { color: var(--text); }
+.so { color: var(--yellow); }
+.sw { color: var(--text2); font-style: italic; }
+
+/* ── Sort & Array rows ── */
+.row-list { margin-top: 10px; display: flex; flex-direction: column; }
+.data-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.76rem;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+.data-row:last-child { border-bottom: none; }
+.data-row:hover { background: var(--surface2); }
+.row-icon { font-size: 0.85rem; flex-shrink: 0; }
+.row-path { font-family: monospace; color: var(--text2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-info { color: var(--text2); white-space: nowrap; font-size: 0.7rem; flex-shrink: 0; }
+
+/* ── Weight ── */
+.weight-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  font-size: 0.76rem;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background 0.1s;
+}
+.weight-row:hover { background: var(--surface2); }
+.w-rank { color: var(--text2); width: 14px; font-size: 0.68rem; flex-shrink: 0; }
+.w-path { font-family: monospace; color: var(--text2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-bar { width: 50px; height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+.w-bar-fill { height: 100%; border-radius: 2px; background: var(--orange); }
+.w-size { color: var(--text); white-space: nowrap; font-size: 0.72rem; flex-shrink: 0; }
+
+.more-hint { color: var(--text2); font-size: 0.7rem; padding: 4px 6px; }
+
+/* ── Info button ── */
+.info-btn {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text2);
+  font-size: 0.6rem;
+  font-style: italic;
+  font-family: Georgia, serif;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+  line-height: 1;
+}
+.info-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+
+/* ── Global tooltip ── */
+#gtip {
+  position: fixed;
+  display: none;
+  max-width: 230px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 11px;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--text2);
+  z-index: 2000;
+  box-shadow: 0 4px 20px rgba(0,0,0,.55);
+  pointer-events: none;
+}
+
+/* ── Right panel / viewer ── */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.viewer-bar {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.75rem;
+  color: var(--text2);
+}
+.viewer-bar span:last-child { margin-left: auto; }
+
+.json-viewer {
+  flex: 1;
+  overflow: auto;
+  padding: 10px 0;
+  font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 0.78rem;
+  line-height: 1.65;
+}
+
+.viewer-empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text2);
+  gap: 8px;
+}
+.viewer-empty .ve-icon { font-size: 3rem; opacity: 0.15; }
+.viewer-empty p { font-size: 0.82rem; }
+
+/* ── JSON lines ── */
+.jl {
+  display: flex;
+  min-height: 1.65em;
+  transition: background 0.15s;
+  padding-right: 16px;
+}
+.jl:hover { background: rgba(255,255,255,.025); }
+.jl.hi-primary   { background: rgba(108,99,255,.22) !important; }
+.jl.hi-secondary { background: rgba(108,99,255,.07); }
+
+.ln {
+  width: 44px;
+  min-width: 44px;
+  text-align: right;
+  padding-right: 14px;
+  color: #384060;
+  user-select: none;
+  font-size: 0.7rem;
+  line-height: 1.65;
+  position: sticky;
+  left: 0;
+  background: var(--bg);
+}
+.jl.hi-primary .ln, .jl.hi-secondary .ln { background: transparent; }
+
+.jl-content { padding: 0; white-space: pre; flex: 1; }
+
+/* ── Syntax colors ── */
+.jk { color: #a78bfa; }
+.js { color: #34d399; }
+.jn { color: #fb923c; }
+.jb { color: #60a5fa; }
+.jz { color: #64748b; font-style: italic; }
+.jp { color: #475569; }
+
+/* ── Scrollbars ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3e4572; }
+
+/* ── Success / empty text ── */
+.ok-text { color: var(--green); font-size: 0.8rem; margin-top: 10px; }
+.muted-text { color: var(--text2); font-size: 0.8rem; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="../index.html" class="back-link">← Назад</a>
+  <h1>JSON Analyzer</h1>
+  <p>Анализ структуры и качества данных</p>
+</header>
+
+<div class="main">
+
+  <!-- Left panel -->
+  <div class="left-panel">
+    <div class="input-area" id="input-area">
+      <div class="input-label-row">
+        <span class="input-label">JSON для анализа</span>
+        <button class="collapse-btn" id="collapse-btn" onclick="toggleInput()" title="Свернуть/развернуть">▲ Свернуть</button>
+      </div>
+      <div class="ia-body">
+        <textarea id="input" placeholder='Вставьте JSON или перетащите файл сюда...'
+          spellcheck="false" autocomplete="off" autocorrect="off"></textarea>
+        <div id="error-msg" class="error-msg"></div>
+        <input type="file" id="file-input" accept=".json,application/json" style="display:none">
+        <div class="input-actions">
+          <button class="btn btn-primary" onclick="analyze()">Анализировать</button>
+          <button class="btn btn-ghost" onclick="document.getElementById('file-input').click()" title="Открыть файл">📁 Файл</button>
+          <button class="btn btn-ghost" onclick="clearAll()">Очистить</button>
+          <span class="shortcut-hint">⌘↵</span>
+        </div>
+      </div>
+    </div>
+    <div class="results" id="results">
+      <div class="empty-state">
+        <div class="ei">🔍</div>
+        <p>Вставьте JSON и нажмите<br>«Анализировать»</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Splitter -->
+  <div class="splitter" id="splitter"></div>
+
+  <!-- Right panel -->
+  <div class="right-panel">
+    <div class="viewer-bar">
+      <span>JSON Viewer</span>
+      <span id="viewer-info"></span>
+    </div>
+    <div class="json-viewer" id="json-viewer">
+      <div class="viewer-empty">
+        <div class="ve-icon">{ }</div>
+        <p>Результат появится здесь</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let pathLineMap = {};   // path string → line number
+let lineEls = [];       // line number → DOM element (1-indexed)
+let _groups = {};       // group id → { items, index }
+let _gid = 0;
+
+// ── Utils ──────────────────────────────────────────────────────────────────
+const esc = s => String(s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function byteSize(str) { return new Blob([str]).size; }
+
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(2) + ' MB';
+}
+
+// ── JSON Viewer builder ────────────────────────────────────────────────────
+function buildViewer(data) {
+  const container = document.getElementById('json-viewer');
+  container.innerHTML = '';
+  pathLineMap = {};
+  lineEls = [];
+  let n = 0;
+  const I = '  ';
+
+  function line(html, path) {
+    n++;
+    const d = document.createElement('div');
+    d.className = 'jl';
+    d.dataset.line = n;
+    if (path != null) { d.dataset.path = path; pathLineMap[path] = n; }
+    d.innerHTML = `<span class="ln">${n}</span><span class="jl-content">${html}</span>`;
+    container.appendChild(d);
+    lineEls[n] = d;
+  }
+
+  function val(v, path, pad, comma) {
+    const c = comma ? '<span class="jp">,</span>' : '';
+    if (v === null)
+      return line(`${pad}<span class="jz">null</span>${c}`, path);
+    if (typeof v === 'boolean')
+      return line(`${pad}<span class="jb">${v}</span>${c}`, path);
+    if (typeof v === 'number')
+      return line(`${pad}<span class="jn">${v}</span>${c}`, path);
+    if (typeof v === 'string')
+      return line(`${pad}<span class="js">"${esc(v)}"</span>${c}`, path);
+    if (Array.isArray(v)) return arr(v, path, pad, comma);
+    return obj(v, path, pad, comma);
+  }
+
+  function arr(v, path, pad, comma) {
+    const c = comma ? '<span class="jp">,</span>' : '';
+    if (!v.length) return line(`${pad}<span class="jp">[]</span>${c}`, path);
+    line(`${pad}<span class="jp">[</span>`, path);
+    v.forEach((it, i) => val(it, `${path}[${i}]`, pad + I, i < v.length - 1));
+    line(`${pad}<span class="jp">]</span>${c}`);
+  }
+
+  function obj(v, path, pad, comma) {
+    const c = comma ? '<span class="jp">,</span>' : '';
+    const keys = Object.keys(v);
+    if (!keys.length) return line(`${pad}<span class="jp">{}</span>${c}`, path);
+    line(`${pad}<span class="jp">{</span>`, path);
+    keys.forEach((k, i) => kv(k, v[k], path ? `${path}.${k}` : k, pad + I, i < keys.length - 1));
+    line(`${pad}<span class="jp">}</span>${c}`);
+  }
+
+  function kv(k, v, path, pad, comma) {
+    const c = comma ? '<span class="jp">,</span>' : '';
+    const kh = `<span class="jk">"${esc(k)}"</span><span class="jp">: </span>`;
+    if (v === null)
+      return line(`${pad}${kh}<span class="jz">null</span>${c}`, path);
+    if (typeof v === 'boolean')
+      return line(`${pad}${kh}<span class="jb">${v}</span>${c}`, path);
+    if (typeof v === 'number')
+      return line(`${pad}${kh}<span class="jn">${v}</span>${c}`, path);
+    if (typeof v === 'string')
+      return line(`${pad}${kh}<span class="js">"${esc(v)}"</span>${c}`, path);
+    if (Array.isArray(v)) {
+      if (!v.length) return line(`${pad}${kh}<span class="jp">[]</span>${c}`, path);
+      line(`${pad}${kh}<span class="jp">[</span>`, path);
+      v.forEach((it, i) => val(it, `${path}[${i}]`, pad + I, i < v.length - 1));
+      line(`${pad}<span class="jp">]</span>${c}`);
+    } else {
+      const keys = Object.keys(v);
+      if (!keys.length) return line(`${pad}${kh}<span class="jp">{}</span>${c}`, path);
+      line(`${pad}${kh}<span class="jp">{</span>`, path);
+      keys.forEach((ck, i) => kv(ck, v[ck], `${path}.${ck}`, pad + I, i < keys.length - 1));
+      line(`${pad}<span class="jp">}</span>${c}`);
+    }
+  }
+
+  if (Array.isArray(data)) arr(data, '', '', false);
+  else obj(data, '', '', false);
+
+  // alias so callers using 'root' label still resolve
+  pathLineMap['root'] = pathLineMap[''] ?? 1;
+
+  document.getElementById('viewer-info').textContent = `${n} строк`;
+}
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+function clearHL() {
+  document.querySelectorAll('.jl.hi-primary,.jl.hi-secondary')
+    .forEach(e => e.classList.remove('hi-primary','hi-secondary'));
+  document.querySelectorAll('.fi.active')
+    .forEach(e => e.classList.remove('active'));
+}
+
+function jumpToLine(ln, group) {
+  clearHL();
+  const el = lineEls[ln];
+  if (!el) return;
+  if (group) {
+    group.items.forEach(it => {
+      const l = it.lineNum ?? pathLineMap[it.path] ?? 0;
+      if (l && lineEls[l]) lineEls[l].classList.add('hi-secondary');
+    });
+    const fi = document.querySelector(`.fi[data-gid="${group.id}"][data-idx="${group.index}"]`);
+    if (fi) { fi.classList.add('active'); fi.scrollIntoView({block:'nearest'}); }
+  }
+  el.classList.remove('hi-secondary');
+  el.classList.add('hi-primary');
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function jumpPath(path) {
+  const ln = pathLineMap[path];
+  if (ln) jumpToLine(ln, null);
+}
+
+function selectFinding(gid, idx) {
+  const g = _groups[gid]; if (!g) return;
+  g.index = idx;
+  const it = g.items[idx];
+  document.getElementById(`fnav-lbl-${gid}`).textContent = it.label;
+  document.getElementById(`fnav-ctr-${gid}`).textContent = `${idx+1} / ${g.items.length}`;
+  const ln = it.lineNum ?? pathLineMap[it.path] ?? 0;
+  jumpToLine(ln, g);
+}
+
+function stepGroup(gid, dir) {
+  const g = _groups[gid]; if (!g) return;
+  g.index = (g.index + dir + g.items.length) % g.items.length;
+  selectFinding(gid, g.index);
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────────
+function toggleCard(id) {
+  document.getElementById(`card-${id}`).classList.toggle('collapsed');
+}
+
+function makeCard(id, icon, title, badge, badgeCls, body, collapsed, tip) {
+  const tipBtn = tip
+    ? `<button class="info-btn" data-tip="${esc(tip)}" onclick="event.stopPropagation()">i</button>`
+    : '';
+  return `<div class="card ${collapsed?'collapsed':''}" id="card-${id}">
+  <div class="card-header" onclick="toggleCard('${id}')">
+    <span class="card-icon">${icon}</span>
+    <span class="card-title">${title}</span>
+    <span class="badge ${badgeCls||''}">${badge}</span>
+    ${tipBtn}
+    <span class="chevron">▾</span>
+  </div>
+  <div class="card-body">${body}</div>
+</div>`;
+}
+
+// Global tooltip
+(function() {
+  const tip = document.createElement('div');
+  tip.id = 'gtip';
+  document.body.appendChild(tip);
+  document.addEventListener('mousemove', e => {
+    const btn = e.target.closest('[data-tip]');
+    if (!btn) { tip.style.display = 'none'; return; }
+    tip.textContent = btn.dataset.tip;
+    tip.style.display = 'block';
+    const x = Math.min(e.clientX + 14, window.innerWidth - 244);
+    const th = tip.offsetHeight;
+    const y = e.clientY - th - 10 < 8 ? e.clientY + 14 : e.clientY - th - 10;
+    tip.style.left = x + 'px';
+    tip.style.top  = y + 'px';
+  });
+  document.addEventListener('mouseleave', () => { tip.style.display = 'none'; }, true);
+})();
+
+function makeFindingGroup(items) {
+  if (!items.length) return '';
+  const gid = 'g' + (_gid++);
+
+  // Resolve line numbers now (pathLineMap is ready)
+  const resolved = items.map(it => ({
+    ...it,
+    lineNum: it.lineNum ?? pathLineMap[it.path] ?? 0
+  }));
+
+  _groups[gid] = { id: gid, items: resolved, index: 0 };
+
+  const listHtml = resolved.slice(0, 30).map((it, i) =>
+    `<div class="fi" data-gid="${gid}" data-idx="${i}"
+      onclick="selectFinding('${gid}',${i})">${esc(it.label)}</div>`
+  ).join('');
+  const moreHtml = resolved.length > 30
+    ? `<div class="more-hint">+${resolved.length-30} ещё...</div>` : '';
+
+  return `<div class="finding-nav">
+  <span class="fnav-label" id="fnav-lbl-${gid}">${esc(resolved[0].label)}</span>
+  <span class="fnav-ctr" id="fnav-ctr-${gid}">1 / ${resolved.length}</span>
+  <button class="nav-btn" onclick="stepGroup('${gid}',-1)">◀</button>
+  <button class="nav-btn" onclick="stepGroup('${gid}',1)">▶</button>
+</div>
+<div class="finding-list">${listHtml}${moreHtml}</div>`;
+}
+
+// ── Analyzers ──────────────────────────────────────────────────────────────
+
+function analyzeStats(data) {
+  const c = {string:0,number:0,boolean:0,null:0,array:0,object:0};
+  let keys = 0, depth = 0;
+  function w(v, d) {
+    if (d > depth) depth = d;
+    if (v === null)            { c.null++;    return; }
+    if (typeof v === 'string') { c.string++;  return; }
+    if (typeof v === 'number') { c.number++;  return; }
+    if (typeof v === 'boolean'){ c.boolean++; return; }
+    if (Array.isArray(v))      { c.array++;  v.forEach(i => w(i, d+1)); return; }
+    c.object++;
+    Object.keys(v).forEach(k => { keys++; w(v[k], d+1); });
+  }
+  w(data, 0);
+  return { c, keys, depth, values: c.string+c.number+c.boolean+c.null };
+}
+
+function analyzeValueFrequency(data) {
+  const targets = [];
+  if (Array.isArray(data)) targets.push({ path: 'root', arr: data });
+  else if (data && typeof data === 'object') {
+    Object.keys(data).forEach(k => {
+      if (Array.isArray(data[k])) targets.push({ path: k, arr: data[k] });
+    });
+  }
+
+  const results = [];
+  targets.forEach(({ path, arr }) => {
+    const objs = arr.filter(it => it && typeof it === 'object' && !Array.isArray(it));
+    if (objs.length < 2) return;
+
+    const allKeys = [...new Set(objs.flatMap(o => Object.keys(o)))];
+    const keyStats = [];
+
+    allKeys.forEach(key => {
+      const vals = objs
+        .map(o => o[key])
+        .filter(v => v !== undefined && v !== null && typeof v !== 'object');
+      if (!vals.length) return;
+
+      const freq = {};
+      vals.forEach(v => { const k = String(v); freq[k] = (freq[k] || 0) + 1; });
+      const dupes = Object.entries(freq)
+        .filter(([, c]) => c > 1)
+        .sort((a, b) => b[1] - a[1]);
+
+      keyStats.push({
+        key,
+        total: vals.length,
+        unique: Object.keys(freq).length,
+        dupes: dupes.slice(0, 5),
+        dupeCount: dupes.length
+      });
+    });
+
+    // Only include if at least one key has duplicates
+    const withDupes = keyStats.filter(k => k.dupeCount > 0);
+    if (keyStats.length) results.push({ path, count: objs.length, keyStats, withDupes });
+  });
+
+  return results;
+}
+
+function findNulls(data) {
+  const r = [];
+  function w(v, path) {
+    if (v === null)  { r.push({ path, type: 'null' }); return; }
+    if (v === '')    { r.push({ path, type: 'empty string' }); return; }
+    if (Array.isArray(v)) {
+      if (!v.length) { r.push({ path, type: 'empty array' }); return; }
+      v.forEach((it, i) => w(it, `${path}[${i}]`));
+      return;
+    }
+    if (v && typeof v === 'object') {
+      const keys = Object.keys(v);
+      if (!keys.length) { r.push({ path, type: 'empty object' }); return; }
+      keys.forEach(k => w(v[k], path ? `${path}.${k}` : k));
+    }
+  }
+  w(data, '');
+  return r;
+}
+
+function analyzeArrays(data) {
+  const r = [];
+  function w(v, path) {
+    if (Array.isArray(v)) {
+      const label = path || 'root';
+      if (v.length > 0 && v.every(i => i && typeof i === 'object' && !Array.isArray(i))) {
+        const sets = v.map(i => new Set(Object.keys(i)));
+        const union = new Set(sets.flatMap(s => [...s]));
+        const diff = [...union].filter(k => !sets.every(s => s.has(k)));
+        r.push({ path: label, count: v.length, homogeneous: !diff.length, missing: diff });
+      } else {
+        r.push({ path: label, count: v.length, homogeneous: null, missing: [] });
+      }
+      v.forEach((it, i) => w(it, `${path}[${i}]`));
+    } else if (v && typeof v === 'object') {
+      Object.keys(v).forEach(k => w(v[k], path ? `${path}.${k}` : k));
+    }
+  }
+  w(data, '');
+  return r;
+}
+
+function analyzeWeight(data) {
+  const r = [];
+  function w(v, path) {
+    r.push({ path: path || 'root', bytes: byteSize(JSON.stringify(v)) });
+    if (Array.isArray(v)) v.forEach((it, i) => w(it, `${path}[${i}]`));
+    else if (v && typeof v === 'object') Object.keys(v).forEach(k => w(v[k], path ? `${path}.${k}` : k));
+  }
+  w(data, '');
+  r.sort((a,b) => b.bytes - a.bytes);
+  return r.slice(0, 10);
+}
+
+function analyzeSorting(data) {
+  // Collect only top-level arrays: root itself if array,
+  // or direct array-valued children if root is object.
+  const targets = [];
+  if (Array.isArray(data)) {
+    targets.push({ path: 'root', arr: data });
+  } else if (data && typeof data === 'object') {
+    Object.keys(data).forEach(k => {
+      if (Array.isArray(data[k])) targets.push({ path: k, arr: data[k] });
+    });
+  }
+
+  return targets.map(({ path, arr }) => {
+    const count = arr.length;
+    if (count < 2) return { path, count, sortKey: null, label: 'мало элементов' };
+
+    const allObjects = arr.every(it => it && typeof it === 'object' && !Array.isArray(it));
+
+    if (!allObjects) {
+      // primitive array
+      const allNum = arr.every(v => typeof v === 'number');
+      const allStr = arr.every(v => typeof v === 'string');
+      if (!allNum && !allStr) return { path, count, sortKey: null, label: 'разные типы' };
+      const asc  = arr.every((v,i) => i === 0 || v >= arr[i-1]);
+      const desc = arr.every((v,i) => i === 0 || v <= arr[i-1]);
+      if (!asc && !desc) return { path, count, sortKey: null, label: 'не отсортирован' };
+      if (asc && desc)   return { path, count, sortKey: null, label: 'все одинаковые' };
+      return { path, count, sortKey: null, label: asc ? '↑ по возрастанию' : '↓ по убыванию', sorted: true };
+    }
+
+    // array of objects — try each key of first element
+    const keys = Object.keys(arr[0]);
+    for (const key of keys) {
+      // filter out items where this key is missing or value is non-primitive
+      const vals = arr
+        .map(it => it[key])
+        .filter(v => v !== undefined && v !== null && typeof v !== 'object');
+      if (vals.length < arr.length * 0.8) continue; // need ≥80% coverage
+      const allNum = vals.every(v => typeof v === 'number');
+      const allStr = vals.every(v => typeof v === 'string');
+      if (!allNum && !allStr) continue;
+      const asc  = vals.every((v,i) => i === 0 || v >= vals[i-1]);
+      const desc = vals.every((v,i) => i === 0 || v <= vals[i-1]);
+      if (!asc && !desc) continue;
+      if (asc && desc)   continue; // all equal — not informative
+      const isDate = allStr && vals.every(v => /^\d{4}-\d{2}-\d{2}/.test(v));
+      const dirLabel = asc
+        ? (isDate ? 'старые → новые' : allStr ? 'A → Z' : '↑ возрастание')
+        : (isDate ? 'новые → старые' : allStr ? 'Z → A' : '↓ убывание');
+      return { path, count, sortKey: key, label: dirLabel, sorted: true, isDate };
+    }
+
+    return { path, count, sortKey: null, label: 'не отсортирован' };
+  });
+}
+
+function buildSchema(v, depth) {
+  if (depth > 6) return '<span class="st">…</span>';
+  if (v === null)            return '<span class="st">null</span>';
+  if (typeof v === 'string') return '<span class="st">string</span>';
+  if (typeof v === 'number') return '<span class="st">number</span>';
+  if (typeof v === 'boolean')return '<span class="st">boolean</span>';
+  const pad = '  '.repeat(depth);
+  if (Array.isArray(v)) {
+    if (!v.length) return '<span class="sb">[]</span>';
+    const allObjs = v.length > 1 && v.every(it => it !== null && typeof it === 'object' && !Array.isArray(it));
+    if (allObjs) {
+      const allKeys = [...new Set(v.flatMap(obj => Object.keys(obj)))];
+      const total = v.length;
+      const hasOptional = allKeys.some(k => v.filter(obj => obj[k] !== undefined).length < total);
+      const optNote = hasOptional
+        ? `\n${pad}  <span class="sw">// поля со знаком ? есть не у всех элементов</span>`
+        : '';
+      const lines = allKeys.slice(0, 40).map(k => {
+        const present = v.filter(obj => obj[k] !== undefined).length;
+        const optional = present < total;
+        const sample = v.find(obj => obj[k] !== undefined)?.[k];
+        const optMark = optional ? '<span class="so">?</span>' : '';
+        return `${pad}  <span class="sk">"${esc(k)}"</span>${optMark}: ${buildSchema(sample, depth+1)}`;
+      });
+      if (allKeys.length > 40) lines.push(`${pad}  <span class="st">…+${allKeys.length-40} ключей</span>`);
+      return `<span class="sb">[{</span>${optNote}\n${lines.join(',\n')}\n${pad}<span class="sb">}]</span>`;
+    }
+    return `<span class="sb">[</span>\n${pad}  ${buildSchema(v[0], depth+1)}\n${pad}<span class="sb">]</span>`;
+  }
+  const keys = Object.keys(v);
+  if (!keys.length) return '<span class="sb">{}</span>';
+  const lines = keys.slice(0, 40).map(k =>
+    `${pad}  <span class="sk">"${esc(k)}"</span>: ${buildSchema(v[k], depth+1)}`
+  );
+  if (keys.length > 40) lines.push(`${pad}  <span class="st">…+${keys.length-40} ключей</span>`);
+  return `<span class="sb">{</span>\n${lines.join(',\n')}\n${pad}<span class="sb">}</span>`;
+}
+
+// ── Main ────────────────────────────────────────────────────────────────────
+function analyze() {
+  _groups = {}; _gid = 0;
+  const inp = document.getElementById('input');
+  const errEl = document.getElementById('error-msg');
+  const text = inp.value.trim();
+
+  if (!text) { showErr('Введите JSON'); return; }
+
+  let data;
+  try {
+    data = JSON.parse(text);
+    inp.classList.remove('has-error');
+    errEl.style.display = 'none';
+  } catch(e) {
+    inp.classList.add('has-error');
+    errEl.textContent = 'Ошибка: ' + e.message;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  buildViewer(data);
+
+  const stats   = analyzeStats(data);
+  const depth   = analyzeDepthBlocks(data);
+  const freq    = analyzeValueFrequency(data);
+  const nulls   = findNulls(data);
+  const arrays  = analyzeArrays(data);
+  const weight  = analyzeWeight(data);
+  const sorting = analyzeSorting(data);
+  const totalBytes = byteSize(text);
+  const cards = [];
+
+  // ── Stats ──
+  const TYPE_COLORS = {string:'#34d399',number:'#fb923c',boolean:'#60a5fa',null:'#64748b',array:'#a78bfa',object:'#6c63ff'};
+  const total = Object.values(stats.c).reduce((a,b)=>a+b, 0);
+  const bars = Object.entries(stats.c).filter(([,v])=>v>0).map(([t,cnt])=>{
+    const pct = total ? Math.round(cnt/total*100) : 0;
+    return `<div class="type-row">
+      <span class="type-name" style="color:${TYPE_COLORS[t]}">${t}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${TYPE_COLORS[t]}"></div></div>
+      <span class="type-cnt">${cnt}</span>
+    </div>`;
+  }).join('');
+
+  const depthRows = depth.map((lv, i) => {
+    const parts = [];
+    if (lv.objects)    parts.push(`${lv.objects.toLocaleString()} объект${lv.objects===1?'':'ов'}`);
+    if (lv.arrays)     parts.push(`${lv.arrays.toLocaleString()} массив${lv.arrays===1?'':'ов'}`);
+    if (lv.primitives) parts.push(`${lv.primitives.toLocaleString()} значен.`);
+    const keys = lv.totalKeys ? ` <span style="color:var(--text2);font-size:0.68rem">(${lv.totalKeys.toLocaleString()} ключей)</span>` : '';
+    return `<div class="depth-row">
+      <span class="depth-lvl">Уровень ${i}</span>
+      <span class="depth-info">${parts.join(', ')}${keys}</span>
+    </div>`;
+  }).join('');
+
+  const statsBody = `
+<div class="stats-grid">
+  <div class="stat-cell"><div class="stat-lbl">Ключей</div><div class="stat-val">${stats.keys.toLocaleString()}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Значений</div><div class="stat-val">${stats.values.toLocaleString()}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Глубина</div><div class="stat-val">${stats.depth}</div></div>
+  <div class="stat-cell"><div class="stat-lbl">Размер</div><div class="stat-val">${fmtBytes(totalBytes)}</div></div>
+</div>
+<div class="type-bars">${bars}</div>
+<div class="depth-section">
+  <div class="depth-title">Блоки по уровням</div>
+  ${depthRows}
+</div>`;
+  const TIPS = {
+    stats:  'Полный обход JSON: подсчёт всех ключей, значений и их типов. Глубина — максимальный уровень вложенности. Блоки по уровням — сколько объектов, массивов и примитивов на каждом уровне.',
+    schema: 'Форма JSON без значений — только ключи и типы. Для массивов объектов ключи собираются по всем элементам: поля со знаком ? есть не у всех записей. Максимальная глубина — 6 уровней.',
+    freq:   'Для каждого ключа в массивах верхнего уровня считает сколько раз каждое значение встречается. Помогает найти дубли по username, id и другим полям.',
+    nulls:  'Обход всех значений: помечает null, пустую строку "", пустой массив [] и пустой объект {}. Клик на результат — переход к строке в просмотрщике.',
+    arrays: 'Проверяет однородность массивов объектов: одинаков ли набор ключей у всех элементов. ⚠️ — некоторые элементы имеют разные поля.',
+    weight: 'Топ-10 ключей и веток по размеру в байтах (JSON.stringify). Помогает найти что раздувает файл. Клик — переход к элементу в просмотрщике.',
+    sort:   'Проверяет массивы первого уровня: по какому ключу они отсортированы. Определяет направление и тип значений (число, строка, дата ISO 8601). Элементы без нужного ключа игнорируются.'
+  };
+
+  cards.push(makeCard('stats','📊','Статистика','обзор','',statsBody,false,TIPS.stats));
+
+  // ── Schema ──
+  cards.push(makeCard('schema','🗂','Схема структуры','schema','',
+    `<div class="schema-view">${buildSchema(data,0)}</div>`, true, TIPS.schema));
+
+  // ── Value Frequency (replaces duplicate keys) ──
+  let freqBody;
+  const totalDupeKeys = freq.reduce((s, r) => s + r.withDupes.length, 0);
+  if (!freq.length) {
+    freqBody = '<p class="muted-text">Массивов объектов не найдено</p>';
+  } else {
+    freqBody = freq.map(r => {
+      const rows = r.keyStats.map(ks => {
+        const hasDupe = ks.dupeCount > 0;
+        const icon = hasDupe ? '🔁' : '✓';
+        const col  = hasDupe ? 'var(--yellow)' : 'var(--green)';
+        const dupeInfo = hasDupe
+          ? ks.dupes.slice(0,3).map(([v,c]) => `<span style="color:var(--text)">${esc(String(v).slice(0,20))}</span> ×${c}`).join('  ·  ')
+          : `${ks.unique} уникальных`;
+        return `<div class="data-row" style="flex-wrap:wrap;gap:2px 7px">
+          <span class="row-icon" style="color:${col}">${icon}</span>
+          <span class="row-path" style="font-family:monospace">${esc(ks.key)}</span>
+          <span class="row-info" style="color:var(--text2);flex:1;min-width:0">${dupeInfo}</span>
+        </div>`;
+      });
+      const header = freq.length > 1
+        ? `<div style="font-size:0.7rem;color:var(--text2);margin:10px 0 4px;font-weight:600">${esc(r.path)} [${r.count}]</div>`
+        : '';
+      return header + `<div class="row-list">${rows.join('')}</div>`;
+    }).join('');
+  }
+  cards.push(makeCard('freq','🔁','Частота значений',
+    totalDupeKeys ? `${totalDupeKeys} ключей с дублями` : 'OK',
+    totalDupeKeys ? 'badge-warn' : 'badge-ok', freqBody, false, TIPS.freq));
+
+  // ── Nulls / empties ──
+  let nullsBody;
+  if (!nulls.length) {
+    nullsBody = '<p class="ok-text">Пустых значений не найдено ✓</p>';
+  } else {
+    const items = nulls.map(n => ({
+      label: `${n.path || 'root'}  →  ${n.type}`,
+      path: n.path,
+      lineNum: null
+    }));
+    nullsBody = makeFindingGroup(items);
+  }
+  cards.push(makeCard('nulls','⬜','Пустые / null',
+    nulls.length || '0', nulls.length ? 'badge-warn' : 'badge-ok', nullsBody, false, TIPS.nulls));
+
+  // ── Arrays ──
+  const badArrays = arrays.filter(a => a.homogeneous === false);
+  let arrBody;
+  if (!arrays.length) {
+    arrBody = '<p class="muted-text">Массивов не найдено</p>';
+  } else {
+    const rows = arrays.slice(0, 12).map(a => {
+      const icon = a.homogeneous === false ? '⚠️' : a.homogeneous ? '✅' : '📦';
+      const info = a.homogeneous === false
+        ? `неодноp.: ${a.missing.slice(0,3).map(k=>`"${k}"`).join(', ')}`
+        : a.homogeneous ? 'однородный' : '';
+      const navPath = a.path === 'root' ? '' : a.path;
+      return `<div class="data-row" onclick="jumpPath('${esc(navPath)}')">
+        <span class="row-icon">${icon}</span>
+        <span class="row-path">${esc(a.path)}</span>
+        <span class="row-info">[${a.count}] ${esc(info)}</span>
+      </div>`;
+    });
+    arrBody = `<div class="row-list">${rows.join('')}</div>`;
+    if (arrays.length > 12) arrBody += `<div class="more-hint">+${arrays.length-12} ещё...</div>`;
+  }
+  cards.push(makeCard('arrays','📋','Массивы',
+    badArrays.length ? `${badArrays.length} проблем` : String(arrays.length),
+    badArrays.length ? 'badge-warn' : '', arrBody, !arrays.length, TIPS.arrays));
+
+  // ── Weight ──
+  const maxW = weight[0]?.bytes || 1;
+  const wRows = weight.slice(0,8).map((w,i) => {
+    const pct = Math.round(w.bytes / maxW * 100);
+    const navPath = w.path === 'root' ? '' : w.path;
+    return `<div class="weight-row" onclick="jumpPath('${esc(navPath)}')">
+      <span class="w-rank">${i+1}</span>
+      <span class="w-path" title="${esc(w.path)}">${esc(w.path)}</span>
+      <div class="w-bar"><div class="w-bar-fill" style="width:${pct}%"></div></div>
+      <span class="w-size">${fmtBytes(w.bytes)}</span>
+    </div>`;
+  }).join('');
+  cards.push(makeCard('weight','⚖️','Вес по полям','топ 10','',
+    `<div style="margin-top:10px">${wRows}</div>`, true, TIPS.weight));
+
+  // ── Sorting ──
+  const unsortedCount = sorting.filter(s => !s.sorted).length;
+  let sortBody;
+  if (!sorting.length) {
+    sortBody = '<p class="muted-text">Массивов верхнего уровня не найдено</p>';
+  } else {
+    const sRows = sorting.map(s => {
+      const navPath = s.path === 'root' ? '' : s.path;
+      const col = s.sorted ? 'var(--green)' : 'var(--text2)';
+      const icon = s.sorted ? '✓' : '🔀';
+      const keyInfo = s.sortKey
+        ? `по <span style="color:var(--accent2);font-family:monospace">"${esc(s.sortKey)}"</span> — ${esc(s.label)}`
+        : esc(s.label);
+      return `<div class="data-row" onclick="jumpPath('${esc(navPath)}')">
+        <span class="row-icon" style="color:${col}">${icon}</span>
+        <span class="row-path">${esc(s.path)} <span style="color:var(--text2);font-size:0.68rem">[${s.count}]</span></span>
+        <span class="row-info" style="color:${col};flex:none;max-width:55%">${keyInfo}</span>
+      </div>`;
+    });
+    sortBody = `<div class="row-list">${sRows.join('')}</div>`;
+  }
+  cards.push(makeCard('sort','🔤','Сортировка',
+    unsortedCount ? `${unsortedCount} несорт.` : 'OK',
+    unsortedCount ? 'badge-warn' : 'badge-ok', sortBody, true, TIPS.sort));
+
+  document.getElementById('results').innerHTML = cards.join('');
+}
+
+// ── Input collapse ─────────────────────────────────────────────────────────
+function toggleInput() {
+  const area = document.getElementById('input-area');
+  const btn  = document.getElementById('collapse-btn');
+  const collapsed = area.classList.toggle('ia-collapsed');
+  btn.textContent = collapsed ? '▼ Развернуть' : '▲ Свернуть';
+}
+
+// ── Depth block analysis ───────────────────────────────────────────────────
+function analyzeDepthBlocks(data) {
+  const levels = []; // [{objects, arrays, primitives, totalKeys}]
+  function w(v, d) {
+    if (!levels[d]) levels[d] = { objects: 0, arrays: 0, primitives: 0, totalKeys: 0 };
+    if (Array.isArray(v)) {
+      levels[d].arrays++;
+      v.forEach(it => w(it, d + 1));
+    } else if (v !== null && typeof v === 'object') {
+      levels[d].objects++;
+      const keys = Object.keys(v);
+      levels[d].totalKeys += keys.length;
+      keys.forEach(k => w(v[k], d + 1));
+    } else {
+      levels[d].primitives++;
+    }
+  }
+  w(data, 0);
+  return levels;
+}
+
+function showErr(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function clearAll() {
+  const inp = document.getElementById('input');
+  inp.value = ''; inp.classList.remove('has-error');
+  document.getElementById('error-msg').style.display = 'none';
+  document.getElementById('results').innerHTML =
+    `<div class="empty-state"><div class="ei">🔍</div><p>Вставьте JSON и нажмите<br>«Анализировать»</p></div>`;
+  document.getElementById('json-viewer').innerHTML =
+    `<div class="viewer-empty"><div class="ve-icon">{ }</div><p>Результат появится здесь</p></div>`;
+  document.getElementById('viewer-info').textContent = '';
+  pathLineMap = {}; lineEls = []; _groups = {};
+}
+
+document.getElementById('input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) analyze();
+});
+
+// ── File load ──────────────────────────────────────────────────────────────
+function readFile(file) {
+  if (!file || !file.name.match(/\.json$/i) && file.type !== 'application/json') {
+    alert('Пожалуйста, выберите JSON-файл');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('input').value = e.target.result;
+    analyze();
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+document.getElementById('file-input').addEventListener('change', e => {
+  if (e.target.files[0]) readFile(e.target.files[0]);
+  e.target.value = '';
+});
+
+// ── Drag & drop anywhere on input area ────────────────────────────────────
+const inputArea = document.querySelector('.input-area');
+
+inputArea.addEventListener('dragover', e => {
+  e.preventDefault();
+  inputArea.classList.add('drag-over');
+});
+inputArea.addEventListener('dragleave', e => {
+  if (!inputArea.contains(e.relatedTarget)) inputArea.classList.remove('drag-over');
+});
+inputArea.addEventListener('drop', e => {
+  e.preventDefault();
+  inputArea.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) readFile(file);
+});
+
+// Also accept drop on the whole window
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) readFile(file);
+});
+
+// ── Resizable splitter ─────────────────────────────────────────────────────
+(function () {
+  const splitter = document.getElementById('splitter');
+  const main = document.querySelector('.main');
+  let dragging = false, startX = 0, startW = 0;
+
+  splitter.addEventListener('mousedown', e => {
+    dragging = true;
+    startX = e.clientX;
+    startW = document.querySelector('.left-panel').getBoundingClientRect().width;
+    splitter.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const w = Math.max(240, Math.min(700, startW + e.clientX - startX));
+    main.style.gridTemplateColumns = `${w}px 5px 1fr`;
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    splitter.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  });
+})();
+</script>
+</body>
+</html>
