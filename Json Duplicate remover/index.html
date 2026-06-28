@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON Duplicate Remover</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3250;
+    --accent: #6c63ff;
+    --accent2: #a78bfa;
+    --green: #34d399;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --radius: 12px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px 16px;
+  }
+
+  .app { max-width: 960px; margin: 0 auto; }
+
+  header { text-align: center; margin-bottom: 40px; }
+
+  header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+
+  header p { color: var(--text2); font-size: 0.95rem; }
+
+  /* Steps */
+  .steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 40px;
+  }
+
+  .step { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text2); transition: color 0.3s; }
+  .step.active { color: var(--accent2); }
+  .step.done { color: var(--green); }
+
+  .step-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .step.active .step-num { background: var(--accent); border-color: var(--accent); color: white; }
+  .step.done .step-num { background: var(--green); border-color: var(--green); color: white; }
+  .step-divider { flex: 1; max-width: 60px; height: 2px; background: var(--border); border-radius: 2px; }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface);
+    position: relative;
+    margin-bottom: 20px;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: rgba(108,99,255,0.08); }
+  .drop-zone.loaded { border-color: var(--green); border-style: solid; background: rgba(52,211,153,0.06); }
+  .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+  .drop-icon { font-size: 2.5rem; margin-bottom: 12px; }
+  .drop-label { font-size: 0.9rem; color: var(--text2); margin-bottom: 4px; }
+  .drop-tag { font-size: 0.75rem; color: var(--text2); }
+
+  .file-info { display: none; flex-direction: column; align-items: center; gap: 6px; }
+  .drop-zone.loaded .file-info { display: flex; }
+  .drop-zone.loaded .drop-placeholder { display: none; }
+  .file-name { font-size: 0.9rem; font-weight: 600; color: var(--green); word-break: break-all; max-width: 400px; }
+  .file-count { font-size: 0.8rem; color: var(--text2); }
+
+  /* Paste area */
+  .paste-divider { text-align: center; color: var(--text2); font-size: 0.8rem; margin: 4px 0 16px; }
+  textarea.paste-box {
+    width: 100%;
+    min-height: 120px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+    font-size: 0.8rem;
+    padding: 14px 16px;
+    resize: vertical;
+    margin-bottom: 20px;
+  }
+  textarea.paste-box:focus { outline: none; border-color: var(--accent); }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 28px; border-radius: 8px; border: none;
+    font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover:not(:disabled) { background: #5a52e0; transform: translateY(-1px); }
+  .btn-outline { background: transparent; color: var(--text); border: 2px solid var(--border); }
+  .btn-outline:hover:not(:disabled) { border-color: var(--accent); color: var(--accent2); }
+  .btn-green { background: var(--green); color: #0f1117; font-weight: 700; }
+  .btn-green:hover:not(:disabled) { background: #2ab882; }
+  .btn-sm { padding: 7px 14px; font-size: 0.82rem; }
+
+  .actions-row { display: flex; justify-content: center; gap: 12px; margin-bottom: 32px; }
+
+  /* Panel */
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
+  .panel-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .panel-title { font-size: 0.9rem; font-weight: 600; }
+  .panel-sub { font-size: 0.8rem; color: var(--text2); margin-top: 2px; }
+  .panel-body { padding: 20px; }
+
+  /* Settings */
+  .setting-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 22px; }
+  .setting-group:last-child { margin-bottom: 0; }
+  .setting-label { font-size: 0.8rem; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .setting-hint { font-size: 0.78rem; color: var(--text2); margin-top: -4px; }
+  .pref-hint { font-size: 0.76rem; color: var(--green); display: none; margin-top: 2px; }
+  .pref-hint.visible { display: block; }
+  .pref-hint a { color: var(--text2); text-decoration: underline; cursor: pointer; margin-left: 8px; }
+  .pref-hint a:hover { color: var(--accent2); }
+
+  select.field {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.9rem;
+    padding: 11px 14px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  select.field:focus { outline: none; border-color: var(--accent); }
+
+  .chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    padding: 8px 18px; border-radius: 20px; border: 1.5px solid var(--border);
+    background: transparent; color: var(--text2); font-size: 0.82rem; cursor: pointer; transition: all 0.15s;
+  }
+  .chip:hover { border-color: var(--accent2); color: var(--accent2); }
+  .chip.selected { border-color: var(--accent); background: rgba(108,99,255,0.15); color: var(--accent2); font-weight: 600; }
+
+  /* Report grid */
+  .report-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+  @media (max-width: 600px) { .report-grid { grid-template-columns: 1fr 1fr; } }
+
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; text-align: center; }
+  .stat-value { font-size: 1.8rem; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+  .stat-label { font-size: 0.76rem; color: var(--text2); }
+  .stat-card.green .stat-value { color: var(--green); }
+  .stat-card.red .stat-value { color: var(--red); }
+  .stat-card.accent .stat-value { color: var(--accent2); }
+  .stat-card.yellow .stat-value { color: var(--yellow); }
+
+  /* Warning banner */
+  .warning-banner {
+    background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.3);
+    border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; display: none;
+  }
+  .warning-banner.visible { display: block; }
+  .warning-title { font-size: 0.88rem; font-weight: 600; color: var(--yellow); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .warning-body { font-size: 0.82rem; color: var(--text2); line-height: 1.6; }
+
+  /* Tabs for preview / removed */
+  .tabs { display: flex; gap: 8px; }
+  .tab {
+    padding: 7px 16px; border-radius: 8px 8px 0 0; border: 1px solid var(--border); border-bottom: none;
+    background: transparent; color: var(--text2); font-size: 0.82rem; cursor: pointer; transition: all 0.15s;
+  }
+  .tab.active { background: var(--surface2); color: var(--accent2); font-weight: 600; }
+
+  .preview-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; }
+  .preview-header { padding: 12px 20px; border-bottom: 1px solid var(--border); font-size: 0.85rem; color: var(--text2); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .preview-content {
+    padding: 16px 20px; font-family: 'SF Mono', 'Monaco', 'Menlo', monospace; font-size: 0.75rem;
+    color: var(--text2); max-height: 360px; overflow: auto; white-space: pre-wrap; word-break: break-word; line-height: 1.6;
+  }
+
+  .removed-list { max-height: 360px; overflow: auto; }
+  .removed-item { padding: 10px 16px; border-bottom: 1px solid rgba(46,50,80,0.4); font-size: 0.8rem; }
+  .removed-item:last-child { border-bottom: none; }
+  .removed-key { color: var(--accent2); font-weight: 600; }
+  .removed-meta { color: var(--text2); font-family: 'SF Mono', monospace; font-size: 0.74rem; margin-top: 3px; }
+  .removed-empty { padding: 24px; text-align: center; color: var(--text2); font-size: 0.85rem; }
+
+  .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+  .badge-accent { background: rgba(108,99,255,0.15); color: var(--accent2); border: 1px solid rgba(108,99,255,0.3); }
+
+  #step2-section, #step3-section { display: none; }
+  .result-actions { display: flex; gap: 12px; justify-content: center; margin-bottom: 24px; flex-wrap: wrap; }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 20px; font-size: 0.875rem; color: var(--text);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4); transform: translateY(20px); opacity: 0;
+    transition: all 0.3s; z-index: 1000; max-width: 320px;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text2); font-size: 0.85rem; text-decoration: none; margin-bottom: 28px; transition: color 0.15s; }
+  .back-link:hover { color: var(--accent2); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <a class="back-link" href="../index.html">← Все инструменты</a>
+
+  <header>
+    <h1>JSON Duplicate Remover</h1>
+    <p>Удаляет дубликаты по ключу, оставляя блок с предельным значением выбранного критерия</p>
+  </header>
+
+  <div class="steps">
+    <div class="step active" id="step-1"><div class="step-num">1</div><span>Загрузка</span></div>
+    <div class="step-divider"></div>
+    <div class="step" id="step-2"><div class="step-num">2</div><span>Настройка</span></div>
+    <div class="step-divider"></div>
+    <div class="step" id="step-3"><div class="step-num">3</div><span>Результат</span></div>
+  </div>
+
+  <!-- STEP 1 -->
+  <div id="step1-section">
+    <div class="drop-zone" id="dz"
+         ondragover="handleDragOver(event,this)"
+         ondragleave="handleDragLeave(this)"
+         ondrop="handleDrop(event)">
+      <input type="file" accept=".json,application/json" onchange="loadFile(event)">
+      <div class="drop-placeholder">
+        <div class="drop-icon">📄</div>
+        <div class="drop-label"><strong>JSON файл</strong></div>
+        <div class="drop-tag">Перетащи сюда или кликни для выбора</div>
+      </div>
+      <div class="file-info">
+        <div style="font-size:2rem">✅</div>
+        <div class="file-name" id="fname"></div>
+        <div class="file-count" id="fcount"></div>
+      </div>
+    </div>
+
+    <div class="paste-divider">— или вставь JSON текстом —</div>
+    <textarea class="paste-box" id="paste-box" placeholder='[ { "Username": "...", "timestamp": 1700000000 }, ... ]' oninput="loadFromPaste()"></textarea>
+
+    <div class="actions-row">
+      <button class="btn btn-primary" id="to-step2-btn" disabled onclick="goToStep2()">Продолжить →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div id="step2-section">
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Где находится массив</div></div>
+      <div class="panel-body">
+        <div class="setting-group">
+          <div class="setting-label">Массив объектов</div>
+          <div class="setting-hint" id="array-hint"></div>
+          <select class="field" id="sel-array" onchange="onArrayChange()"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">Правила удаления дубликатов</div></div>
+      <div class="panel-body">
+        <div class="setting-group">
+          <div class="setting-label">Ключ дубликата</div>
+          <div class="setting-hint">Блоки с одинаковым значением этого ключа считаются дубликатами (напр. Username)</div>
+          <select class="field" id="sel-dedup"></select>
+          <div class="pref-hint" id="dedup-pref"></div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label">Ключ для сравнения</div>
+          <div class="setting-hint">Из дубликатов остаётся блок с предельным значением этого ключа (напр. timestamp)</div>
+          <select class="field" id="sel-ts"></select>
+          <div class="pref-hint" id="ts-pref"></div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label">Какой блок оставлять</div>
+          <div class="chip-row">
+            <button class="chip selected" id="rule-max" onclick="selectRule('max')">⬆ Максимальный (самый свежий)</button>
+            <button class="chip" id="rule-min" onclick="selectRule('min')">⬇ Минимальный (самый старый)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn btn-outline btn-sm" onclick="goToStep1()">← Назад</button>
+      <button class="btn btn-primary" onclick="goToStep3()">Удалить дубликаты →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div id="step3-section">
+
+    <div class="warning-banner" id="warn-missing">
+      <div class="warning-title">⚠ Найдены блоки без нужных ключей</div>
+      <div class="warning-body" id="warn-missing-body"></div>
+    </div>
+
+    <div class="report-grid">
+      <div class="stat-card accent"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Было блоков</div></div>
+      <div class="stat-card green"><div class="stat-value" id="stat-kept">0</div><div class="stat-label">Осталось</div></div>
+      <div class="stat-card red"><div class="stat-value" id="stat-removed">0</div><div class="stat-label">Удалено дубликатов</div></div>
+      <div class="stat-card yellow"><div class="stat-value" id="stat-groups">0</div><div class="stat-label">Уникальных ключей</div></div>
+    </div>
+
+    <div class="preview-box">
+      <div class="preview-header">
+        <div class="tabs">
+          <button class="tab active" id="tab-result" onclick="switchTab('result')">Результат</button>
+          <button class="tab" id="tab-removed" onclick="switchTab('removed')">Удалённые</button>
+        </div>
+        <span id="preview-badge" style="margin-left:auto"></span>
+      </div>
+      <div class="preview-content" id="view-result"></div>
+      <div class="removed-list" id="view-removed" style="display:none"></div>
+    </div>
+
+    <div class="result-actions">
+      <button class="btn btn-green" onclick="downloadResult()">⬇ Скачать JSON</button>
+      <button class="btn btn-outline" onclick="copyResult()">📋 Копировать</button>
+      <button class="btn btn-outline" onclick="goToStep2()">← Изменить настройки</button>
+      <button class="btn btn-outline" onclick="reset()">↺ Заново</button>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const state = {
+  fileName: null,
+  root: null,        // parsed JSON (root)
+  arrays: [],        // [{ path:[...], label, length, get() }]
+  arrayIdx: 0,
+  dedupKey: null,
+  tsKey: null,
+  rule: 'max',
+  result: null,      // full root with deduped array
+  resultArray: null, // just the deduped array
+  removed: [],       // removed blocks (with key/ts for display)
+  missing: 0,        // blocks lacking dedup key or ts
+};
+
+// ── Loading ─────────────────────────────────────────────────────────────────
+
+function handleDragOver(e, el) { e.preventDefault(); el.classList.add('dragover'); }
+function handleDragLeave(el) { el.classList.remove('dragover'); }
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dz').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+function loadFile(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
+
+function processFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => acceptJson(e.target.result, file.name);
+  reader.readAsText(file);
+}
+
+function loadFromPaste() {
+  const txt = document.getElementById('paste-box').value.trim();
+  if (!txt) { document.getElementById('to-step2-btn').disabled = true; return; }
+  acceptJson(txt, 'pasted.json', true);
+}
+
+function acceptJson(text, name, silent) {
+  let data;
+  try { data = JSON.parse(text); }
+  catch { if (!silent) showToast('❌ Не удалось разобрать JSON'); document.getElementById('to-step2-btn').disabled = true; return; }
+
+  const arrays = findObjectArrays(data);
+  if (arrays.length === 0) { showToast('❌ В JSON нет массива объектов'); document.getElementById('to-step2-btn').disabled = true; return; }
+
+  state.root = data;
+  state.fileName = name;
+  state.arrays = arrays;
+  state.arrayIdx = 0;
+
+  const dz = document.getElementById('dz');
+  dz.classList.add('loaded');
+  document.getElementById('fname').textContent = name;
+  document.getElementById('fcount').textContent = `${arrays[0].length.toLocaleString()} объектов в массиве`;
+  document.getElementById('to-step2-btn').disabled = false;
+}
+
+// Recursively find every array whose elements are (mostly) plain objects
+function findObjectArrays(root) {
+  const found = [];
+  function walk(node, path) {
+    if (Array.isArray(node)) {
+      const objCount = node.filter(x => x && typeof x === 'object' && !Array.isArray(x)).length;
+      if (node.length > 0 && objCount >= node.length / 2) {
+        found.push({ path: path.slice(), length: node.length });
+      }
+      node.forEach((item, i) => walk(item, path.concat(i)));
+    } else if (node && typeof node === 'object') {
+      Object.keys(node).forEach(k => walk(node[k], path.concat(k)));
+    }
+  }
+  walk(root, []);
+  // largest arrays first — most likely the main data
+  found.sort((a, b) => b.length - a.length);
+  return found;
+}
+
+function getByPath(root, path) {
+  return path.reduce((acc, k) => acc[k], root);
+}
+function setByPath(root, path, value) {
+  if (path.length === 0) return value;
+  const clone = Array.isArray(root) ? root.slice() : { ...root };
+  let cur = clone;
+  for (let i = 0; i < path.length - 1; i++) {
+    const k = path[i];
+    cur[k] = Array.isArray(cur[k]) ? cur[k].slice() : { ...cur[k] };
+    cur = cur[k];
+  }
+  cur[path[path.length - 1]] = value;
+  return clone;
+}
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+
+function goToStep1() { show('step1-section'); hide('step2-section'); hide('step3-section'); setStep(1); }
+
+function goToStep2() {
+  if (!state.root) return;
+  show('step2-section'); hide('step1-section'); hide('step3-section'); setStep(2);
+  renderArraySelect();
+  onArrayChange();
+}
+
+function goToStep3() {
+  if (!state.dedupKey || !state.tsKey) { showToast('❌ Выбери оба ключа'); return; }
+  show('step3-section'); hide('step1-section'); hide('step2-section'); setStep(3);
+  runDedup();
+}
+
+// ── Step 2 rendering ───────────────────────────────────────────────────────────
+
+function renderArraySelect() {
+  const sel = document.getElementById('sel-array');
+  sel.innerHTML = state.arrays.map((a, i) => {
+    const label = a.path.length === 0 ? 'корневой массив' : a.path.join(' → ');
+    return `<option value="${i}">${escHtml(label)} (${a.length} объектов)</option>`;
+  }).join('');
+  sel.value = state.arrayIdx;
+  document.getElementById('array-hint').textContent = state.arrays.length > 1
+    ? `Найдено ${state.arrays.length} массивов — выбери нужный`
+    : 'Массив найден автоматически';
+}
+
+function onArrayChange() {
+  state.arrayIdx = parseInt(document.getElementById('sel-array').value, 10) || 0;
+  const arr = getByPath(state.root, state.arrays[state.arrayIdx].path);
+
+  // Collect union of keys across objects
+  const keys = [];
+  const seen = new Set();
+  arr.forEach(o => {
+    if (o && typeof o === 'object' && !Array.isArray(o))
+      Object.keys(o).forEach(k => { if (!seen.has(k)) { seen.add(k); keys.push(k); } });
+  });
+
+  // Priority: remembered default (if present in data) → auto-guess → first key
+  const remDedup = loadPref('dedupKey');
+  const remTs = loadPref('tsKey');
+  const guessDedup = (remDedup && keys.includes(remDedup)) ? remDedup
+    : (keys.find(k => /user\s*name|username|userid|user.?id|\bid\b/i.test(k)) || keys[0]);
+  const guessTs = (remTs && keys.includes(remTs)) ? remTs
+    : (keys.find(k => /time|date|stamp|created|updated/i.test(k)) || keys[Math.min(1, keys.length - 1)]);
+
+  fillSelect('sel-dedup', keys, guessDedup);
+  fillSelect('sel-ts', keys, guessTs);
+  state.dedupKey = guessDedup;
+  state.tsKey = guessTs;
+
+  document.getElementById('sel-dedup').onchange = e => { state.dedupKey = e.target.value; savePref('dedupKey', e.target.value); updatePrefHints(); };
+  document.getElementById('sel-ts').onchange = e => { state.tsKey = e.target.value; savePref('tsKey', e.target.value); updatePrefHints(); };
+  updatePrefHints();
+}
+
+// ── Default-key memory (localStorage) ───────────────────────────────────────────
+
+const PREF_PREFIX = 'jdr.pref.';
+function loadPref(name) { try { return localStorage.getItem(PREF_PREFIX + name); } catch { return null; } }
+function savePref(name, val) { try { localStorage.setItem(PREF_PREFIX + name, val); } catch {} }
+function clearPref(name) { try { localStorage.removeItem(PREF_PREFIX + name); } catch {} }
+
+function updatePrefHints() {
+  renderPrefHint('dedup-pref', 'dedupKey');
+  renderPrefHint('ts-pref', 'tsKey');
+}
+
+function renderPrefHint(elId, prefName) {
+  const el = document.getElementById(elId);
+  const val = loadPref(prefName);
+  if (val) {
+    el.innerHTML = `🔖 Сохранён по умолчанию: <strong>${escHtml(val)}</strong><a onclick="resetPref('${prefName}')">сбросить</a>`;
+    el.classList.add('visible');
+  } else {
+    el.classList.remove('visible');
+  }
+}
+
+function resetPref(prefName) {
+  clearPref(prefName);
+  onArrayChange();   // re-resolve defaults via auto-guess
+}
+
+function fillSelect(id, keys, selected) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = keys.map(k => `<option value="${escHtml(k)}">${escHtml(k)}</option>`).join('');
+  if (selected != null) sel.value = selected;
+}
+
+function selectRule(rule) {
+  state.rule = rule;
+  document.getElementById('rule-max').classList.toggle('selected', rule === 'max');
+  document.getElementById('rule-min').classList.toggle('selected', rule === 'min');
+}
+
+// ── Dedup core ─────────────────────────────────────────────────────────────────
+
+// Convert a timestamp value to a comparable number; returns null if not comparable
+function tsValue(v) {
+  if (v == null) return null;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (s === '') return null;
+    if (/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s);     // numeric string
+    const d = Date.parse(s);                                  // ISO / date string
+    return isNaN(d) ? null : d;
+  }
+  return null;
+}
+
+function runDedup() {
+  const arr = getByPath(state.root, state.arrays[state.arrayIdx].path);
+  const dk = state.dedupKey, tk = state.tsKey, max = state.rule === 'max';
+
+  const groups = new Map();   // keyValue -> { idx, ts }
+  const kept = [];            // output array (built after grouping to preserve first-seen order)
+  const order = [];           // keyValues in first-seen order
+  const removed = [];
+  const passthrough = [];     // blocks lacking dedup key or ts — kept as-is, in place
+  let missing = 0;
+
+  arr.forEach((obj, i) => {
+    const valid = obj && typeof obj === 'object' && !Array.isArray(obj)
+      && Object.prototype.hasOwnProperty.call(obj, dk) && obj[dk] != null
+      && tsValue(obj[tk]) !== null;
+
+    if (!valid) { missing++; passthrough.push({ i, obj }); return; }
+
+    const key = String(obj[dk]);
+    const ts = tsValue(obj[tk]);
+    const prev = groups.get(key);
+
+    if (!prev) {
+      groups.set(key, { i, ts });
+      order.push(key);
+    } else {
+      // tie-break: first seen wins (strict > / <), so equal ts keeps existing
+      const better = max ? ts > prev.ts : ts < prev.ts;
+      if (better) {
+        removed.push(blockInfo(arr[prev.i], prev.i, dk, tk));
+        groups.set(key, { i, ts });
+      } else {
+        removed.push(blockInfo(obj, i, dk, tk));
+      }
+    }
+  });
+
+  // Rebuild array preserving original order of surviving blocks (winners + passthrough)
+  const winners = new Set([...groups.values()].map(g => g.i));
+  const passIdx = new Set(passthrough.map(p => p.i));
+  const resultArray = arr.filter((_, i) => winners.has(i) || passIdx.has(i));
+
+  state.resultArray = resultArray;
+  state.result = setByPath(state.root, state.arrays[state.arrayIdx].path, resultArray);
+  state.removed = removed;
+  state.missing = missing;
+
+  renderResult(arr.length, resultArray.length, removed.length, order.length, missing);
+}
+
+function blockInfo(obj, i, dk, tk) {
+  return { i, keyVal: obj[dk], tsVal: obj[tk], obj };
+}
+
+function renderResult(total, kept, removedN, groupsN, missing) {
+  document.getElementById('stat-total').textContent = total.toLocaleString();
+  document.getElementById('stat-kept').textContent = kept.toLocaleString();
+  document.getElementById('stat-removed').textContent = removedN.toLocaleString();
+  document.getElementById('stat-groups').textContent = groupsN.toLocaleString();
+
+  const warn = document.getElementById('warn-missing');
+  if (missing > 0) {
+    warn.classList.add('visible');
+    document.getElementById('warn-missing-body').textContent =
+      `${missing} ${plural(missing)} без ключа «${state.dedupKey}» или без валидного «${state.tsKey}». ` +
+      `Обычно таких быть не должно — они оставлены в результате без изменений и не участвовали в дедупликации.`;
+  } else {
+    warn.classList.remove('visible');
+  }
+
+  // Result view
+  document.getElementById('view-result').textContent = JSON.stringify(state.resultArray.slice(0, 20), null, 2)
+    + (state.resultArray.length > 20 ? `\n\n… ещё ${state.resultArray.length - 20} блоков` : '');
+  document.getElementById('preview-badge').innerHTML = `<span class="badge badge-accent">${kept} блоков в результате</span>`;
+
+  // Removed view
+  const rl = document.getElementById('view-removed');
+  if (state.removed.length === 0) {
+    rl.innerHTML = '<div class="removed-empty">Дубликаты не найдены 🎉</div>';
+  } else {
+    rl.innerHTML = state.removed.slice(0, 200).map(r => `
+      <div class="removed-item">
+        <span class="removed-key">${escHtml(state.dedupKey)}: ${escHtml(String(r.keyVal))}</span>
+        <div class="removed-meta">индекс #${r.i} · ${escHtml(state.tsKey)} = ${escHtml(String(r.tsVal))}</div>
+      </div>`).join('') +
+      (state.removed.length > 200 ? `<div class="removed-empty">… ещё ${state.removed.length - 200} удалённых</div>` : '');
+  }
+  switchTab('result');
+}
+
+function switchTab(which) {
+  const isResult = which === 'result';
+  document.getElementById('tab-result').classList.toggle('active', isResult);
+  document.getElementById('tab-removed').classList.toggle('active', !isResult);
+  document.getElementById('view-result').style.display = isResult ? 'block' : 'none';
+  document.getElementById('view-removed').style.display = isResult ? 'none' : 'block';
+}
+
+// ── Output ─────────────────────────────────────────────────────────────────────
+
+function downloadResult() {
+  if (!state.result) return;
+  const json = JSON.stringify(state.result, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (state.fileName || 'data').replace(/\.json$/i, '') + '_deduped.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ Файл скачан!');
+}
+
+function copyResult() {
+  if (!state.result) return;
+  navigator.clipboard.writeText(JSON.stringify(state.result, null, 2))
+    .then(() => showToast('✅ Скопировано в буфер'))
+    .catch(() => showToast('❌ Не удалось скопировать'));
+}
+
+function reset() { location.reload(); }
+
+// ── Utils ──────────────────────────────────────────────────────────────────────
+
+function setStep(n) {
+  for (let i = 1; i <= 3; i++) {
+    const el = document.getElementById('step-' + i);
+    el.classList.remove('active', 'done');
+    if (i < n) el.classList.add('done');
+    else if (i === n) el.classList.add('active');
+  }
+}
+function show(id) { document.getElementById(id).style.display = 'block'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+function plural(n) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return 'блок';
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return 'блока';
+  return 'блоков';
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
